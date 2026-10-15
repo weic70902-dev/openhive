@@ -936,14 +936,7 @@ Vercel → Project → Settings → Environment Variables，**Production / Previ
 
 ## 10.3 ⚠️ 仍需人工完成的事项
 
-1. **开启「推送即自动部署」（推荐）**
-   本次是通过 CLI 上传本地代码部署的，**GitHub 推送尚不会触发自动部署**。
-   原因：Vercel 账号当前只有邮箱登录方式，缺少 GitHub 登录连接，因此
-   `vercel git connect` 报错
-   `You need to add a Login Connection to your GitHub account first`。
-   解决：Vercel → 右上角头像 → **Settings → Login Connections → Connect GitHub**
-   完成一次 OAuth 授权；之后在本项目目录执行 `vercel git connect` 即可打通，
-   生产分支为 `main`。
+1. ~~开启「推送即自动部署」~~ → **已实现，见 10.5**（用 GitHub Actions，无需 Vercel GitHub 集成）。
 
 2. **Supabase Auth 配置**（见 9.5）：Site URL 与 Redirect URLs 改为
    `https://openhive-pearl.vercel.app`，否则线上登录回调跳不回来。
@@ -957,3 +950,62 @@ Vercel → Project → Settings → Environment Variables，**Production / Previ
 - `.env.local`：被 `vercel link` 追加了 `VERCEL_OIDC_TOKEN`
 
 > 安全提醒：本次部署所用的 Vercel 临时令牌与 GitHub PAT 均应在用完后立即吊销。
+
+## 10.5 自动部署：GitHub Actions（已上线并验证）
+
+### 为什么不用 Vercel 原生 Git 集成
+
+Vercel 原生集成要求账号先建立 **GitHub Login Connection**，而它是 GitHub OAuth 授权，
+**必须本人在网页点授权**，无法用令牌自动化。实测证据：
+
+| 尝试 | 结果 |
+|---|---|
+| `POST /v9/projects/{id}/link` | 400 `You need to add a Login Connection to your GitHub account first` |
+| `GET /v1/integrations/git-namespaces?provider=github` | `[]`（账号下 0 个 GitHub 连接） |
+| `PATCH /v9/projects/{id}` 带 `gitRepository` | 400 字段不被允许 |
+| `POST /v9/projects/{id}/deploy-hooks` | 404 `The project is not connected to any repository so it cannot have deploy hooks`（Deploy Hook 也依赖仓库连接，同样不可用） |
+
+因此改用 GitHub Actions 直接调用 Vercel CLI 部署，**完全绕开该授权**。
+
+### 工作流
+
+文件：`.github/workflows/deploy.yml`
+
+- 触发：`push` 到 `main`，以及手动 `workflow_dispatch`
+- 并发：`concurrency: vercel-production`（`cancel-in-progress: false`），避免并发推送互相覆盖
+- 步骤：checkout → setup-node 22 → `npx vercel@latest deploy --prod --yes`
+
+### 需要的仓库 Secrets
+
+| Secret | 值 |
+|---|---|
+| `VERCEL_TOKEN` | Vercel 访问令牌 |
+| `VERCEL_ORG_ID` | `team_28ThcTtMed2MsbV4JEDFH8gm` |
+| `VERCEL_PROJECT_ID` | `prj_EZSCVo8LyxWrhwz9AcHnYoWhrp5z` |
+
+`VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` 让 CLI 在没有 `.vercel/` 目录的 CI 环境里也能定位项目。
+
+写入方式（本地有可用 GitHub 令牌时）：
+
+```bash
+GH_TOKEN=<github_pat> gh secret set VERCEL_TOKEN      --repo weic70902-dev/openhive --body '<vercel_token>'
+GH_TOKEN=<github_pat> gh secret set VERCEL_ORG_ID     --repo weic70902-dev/openhive --body 'team_28ThcTtMed2MsbV4JEDFH8gm'
+GH_TOKEN=<github_pat> gh secret set VERCEL_PROJECT_ID --repo weic70902-dev/openhive --body 'prj_EZSCVo8LyxWrhwz9AcHnYoWhrp5z'
+```
+
+### ⚠️ 令牌有效期
+
+`VERCEL_TOKEN` 必须是**长期有效**的令牌。首次配置时误用了临时令牌
+（`expiresAt` 仅 40 分钟后），会导致工作流在令牌过期后静默失败。
+更换方法：到 https://vercel.com/account/tokens 新建一个长期令牌，
+然后重新执行上面的 `gh secret set VERCEL_TOKEN`。
+
+### 验证记录
+
+| 运行 | 触发 | 结论 | 耗时 |
+|---|---|---|---|
+| 38716279320 | push `fd71f4b` | success | 1m0s |
+| 38716463211 | push `4f56b35` | success | — |
+
+两次均在 Vercel 侧产出 `target=production` 且 `state=READY` 的部署，
+并带上对应 `githubCommitSha`。
