@@ -973,15 +973,17 @@ Vercel 原生集成要求账号先建立 **GitHub Login Connection**，而它是
 
 - 触发：`push` 到 `main`，以及手动 `workflow_dispatch`
 - 并发：`concurrency: vercel-production`（`cancel-in-progress: false`），避免并发推送互相覆盖
-- 步骤：checkout → setup-node 22 → `npx vercel@latest deploy --prod --yes`
+- 步骤：checkout → setup-node 22 → `npx --yes vercel@64.2.0 deploy --prod --yes`
+- **令牌只通过环境变量注入**，不写在命令行里；CLI 版本**锁定**为 `64.2.0`（不用 `@latest`），
+  避免供应链风险
 
 ### 需要的仓库 Secrets
 
-| Secret | 值 |
-|---|---|
-| `VERCEL_TOKEN` | Vercel 访问令牌 |
-| `VERCEL_ORG_ID` | `team_28ThcTtMed2MsbV4JEDFH8gm` |
-| `VERCEL_PROJECT_ID` | `prj_EZSCVo8LyxWrhwz9AcHnYoWhrp5z` |
+| Secret | 值 | 敏感度 |
+|---|---|---|
+| `VERCEL_TOKEN` | Vercel **项目级**访问令牌（`scope=project-only`，仅限 openhive 项目） | 高 |
+| `VERCEL_ORG_ID` | `team_28ThcTtMed2MsbV4JEDFH8gm` | 低（非密钥） |
+| `VERCEL_PROJECT_ID` | `prj_EZSCVo8LyxWrhwz9AcHnYoWhrp5z` | 低（非密钥） |
 
 `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` 让 CLI 在没有 `.vercel/` 目录的 CI 环境里也能定位项目。
 
@@ -993,19 +995,43 @@ GH_TOKEN=<github_pat> gh secret set VERCEL_ORG_ID     --repo weic70902-dev/openh
 GH_TOKEN=<github_pat> gh secret set VERCEL_PROJECT_ID --repo weic70902-dev/openhive --body 'prj_EZSCVo8LyxWrhwz9AcHnYoWhrp5z'
 ```
 
-### ⚠️ 令牌有效期
+### 🔐 令牌安全分析（开源仓库场景）
 
-`VERCEL_TOKEN` 必须是**长期有效**的令牌。首次配置时误用了临时令牌
-（`expiresAt` 仅 40 分钟后），会导致工作流在令牌过期后静默失败。
-更换方法：到 https://vercel.com/account/tokens 新建一个长期令牌，
-然后重新执行上面的 `gh secret set VERCEL_TOKEN`。
+**结论：仓库开源不会泄露令牌。** 令牌存放在 GitHub Actions Secrets，不是仓库文件里。
+
+| 问题 | 答案 |
+|---|---|
+| 存在哪里 | GitHub 服务端的 Actions Secrets，用仓库公钥做 libsodium sealed box **加密存储** |
+| 别人能看到吗 | **不能**。浏览者、克隆者、fork 者都拿不到。GitHub API 只返回名字和更新时间，**连仓库管理员也无法读回原值**（只能覆盖或删除） |
+| 日志里会泄露吗 | GitHub 自动把已知密钥值在日志中替换为 `***`；且本工作流**不把令牌写进命令行**，实测运行日志中 `vcp_` 明文出现 **0 次** |
+| 协作者能偷吗 | ⚠️ **能**。任何有仓库**写权限**的人都可以改 workflow 把密钥外发。因此不要随意添加协作者 |
+| 外部 PR 能偷吗 | **不能**。GitHub 默认不向 fork 发起的 PR 传递 Secrets；且本工作流只由 `push` 到 `main` 触发 |
+| 令牌权限多大 | 用的是 **项目级令牌**（`scope=project-only`），实测**只能看到 openhive 一个项目**，账号级接口（如列出所有令牌）返回 403。即使泄露，影响面被限制在这一个项目 |
+
+**项目级令牌的创建方式**（账号级令牌权限过大，不推荐）：
+
+```bash
+# 必须在团队作用域下创建，scope 取 project-only
+curl -X POST "https://api.vercel.com/v3/user/tokens?teamId=team_28ThcTtMed2MsbV4JEDFH8gm" \
+  -H "Authorization: Bearer <账号级令牌>" -H "Content-Type: application/json" \
+  -d '{"name":"openhive-ci","scope":"project-only","projectId":"prj_EZSCVo8LyxWrhwz9AcHnYoWhrp5z"}'
+# 响应中的 bearerToken 只显示一次，务必立即保存
+```
+
+不设 `expiresAt` 即永不过期。轮换方式：重新执行上面的 `gh secret set VERCEL_TOKEN`。
+
+> 历史备注：首次配置时误用了**临时令牌**（`expiresAt` 仅 40 分钟后），
+> 会导致工作流在令牌过期后静默失败。现已替换为项目级长期令牌。
 
 ### 验证记录
 
-| 运行 | 触发 | 结论 | 耗时 |
+| 运行 | 触发 | 结论 | 说明 |
 |---|---|---|---|
-| 38716279320 | push `fd71f4b` | success | 1m0s |
-| 38716463211 | push `4f56b35` | success | — |
+| 38716279320 | push `fd71f4b` | success | 首次打通，临时令牌 |
+| 38716463211 | push `4f56b35` | success | actions 升 v5 |
+| 38716647182 | push `fa89568` | success | 文档更新自动触发 |
+| 38717377368 | 手动 `workflow_dispatch` | success | 验证**项目级令牌**可用 |
+| 38717551245 | push `c64063d` | success | 令牌改为纯环境变量注入 + 锁定 CLI 版本 |
 
-两次均在 Vercel 侧产出 `target=production` 且 `state=READY` 的部署，
-并带上对应 `githubCommitSha`。
+五次均在 Vercel 侧产出 `target=production` 且 `state=READY` 的部署，
+并带上对应 `githubCommitSha`。最后一次运行日志中 `vcp_` 明文出现 **0 次**。
