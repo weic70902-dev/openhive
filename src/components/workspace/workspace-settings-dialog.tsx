@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useT } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -85,6 +86,8 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
     loadMembers()
     loadLivekitConfig()
   }, [open])
+
+  const t = useT()
 
   async function loadMembers() {
     const client = getSupabaseClient()
@@ -226,9 +229,9 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
 
   function roleLabel(role: string) {
     switch (role) {
-      case 'owner': return 'Owner'
-      case 'admin': return 'Admin'
-      default: return 'Member'
+      case 'owner': return t('Owner')
+      case 'admin': return t('Admin')
+      default: return t('Member')
     }
   }
 
@@ -249,7 +252,7 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" style={{ color: '#7C5CFC' }} />
-            Workspace Settings
+            {t('Workspace Settings')}
           </DialogTitle>
         </DialogHeader>
 
@@ -257,9 +260,9 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
         {isAdmin && (
           <div className="flex gap-1 border-b pt-1" style={{ borderColor: '#E5E1EE' }}>
             {[
-              { key: 'general' as const, label: 'General', icon: Settings },
-              { key: 'webhooks' as const, label: 'Webhooks', icon: Webhook },
-              { key: 'bots' as const, label: 'Bots', icon: Bot },
+              { key: 'general' as const, label: t('General'), icon: Settings },
+              { key: 'webhooks' as const, label: t('Webhooks'), icon: Webhook },
+              { key: 'bots' as const, label: t('Bots'), icon: Bot },
             ].map(tab => (
               <button
                 key={tab.key}
@@ -291,7 +294,7 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
           {/* Workspace name */}
           <div className="space-y-2">
             <Label className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: '#8E8EA0' }}>
-              Workspace name
+              {t('Workspace name')}
             </Label>
             <div className="flex items-center gap-2.5 flex-1 px-3 py-2 rounded-lg" style={{ background: '#F5F2FF' }}>
               <div
@@ -310,13 +313,13 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: '#8E8EA0' }}>
-                Members ({members.length})
+                {t('Members ({count})', { count: members.length })}
               </Label>
             </div>
 
             {members.length > 5 && (
               <Input
-                placeholder="Search members..."
+                placeholder={t('Search members...')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -379,7 +382,7 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
                               className="text-[10px] px-1.5 py-0.5 rounded"
                               style={{ background: '#F5F2FF', color: '#8E8EA0' }}
                             >
-                              you
+                              {t('you')}
                             </span>
                           )}
                           {roleIcon(m.role)}
@@ -415,19 +418,19 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
                               style={{ color: '#7C5CFC' }}
                               title={
                                 m.role === 'admin'
-                                  ? 'Demote to member'
-                                  : 'Promote to admin'
+                                  ? t('Demote to member')
+                                  : t('Promote to admin')
                               }
                             >
                               {m.role === 'admin' ? (
                                 <>
                                   <Shield className="h-3 w-3" />
-                                  Demote
+                                  {t('Demote')}
                                 </>
                               ) : (
                                 <>
                                   <ShieldCheck className="h-3 w-3" />
-                                  Admin
+                                  {t('Admin')}
                                 </>
                               )}
                             </button>
@@ -445,7 +448,7 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
                                 {removing ? (
                                   <Loader2 className="h-3 w-3 animate-spin" />
                                 ) : (
-                                  'Confirm'
+                                  t('Confirm')
                                 )}
                               </button>
                               <button
@@ -459,7 +462,7 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
                             <button
                               onClick={() => setConfirmRemoveId(m.profile.id)}
                               className="h-7 w-7 rounded-md flex items-center justify-center transition-colors hover:bg-red-50"
-                              title="Remove from workspace"
+                              title={t('Remove from workspace')}
                             >
                               <UserMinus className="h-3.5 w-3.5" style={{ color: '#E55B5B' }} />
                             </button>
@@ -478,12 +481,12 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
             <div className="space-y-3">
               <Label className="text-[13px] font-semibold uppercase tracking-wider flex items-center gap-2" style={{ color: '#8E8EA0' }}>
                 <Video className="h-3.5 w-3.5" />
-                Video Calls (LiveKit)
+                {t('Video Calls (LiveKit)')}
               </Label>
 
               <div className="p-3 rounded-xl space-y-3" style={{ background: '#F5F2FF', border: '1px solid #E5E1EE' }}>
                 <p className="text-[12px]" style={{ color: '#8E8EA0' }}>
-                  Connect a{' '}
+                  {t('Connect a')}{' '}
                   <a
                     href="https://livekit.io"
                     target="_blank"
@@ -494,13 +497,13 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
                     LiveKit
                     <ExternalLink className="h-2.5 w-2.5" />
                   </a>
-                  {' '}server to enable audio & video calls in your workspace.
+                  {' '}{t('server to enable audio & video calls in your workspace.')}
                 </p>
 
                 <div className="space-y-2">
                   <div>
                     <label className="text-[11px] font-medium mb-1 block" style={{ color: '#4A4860' }}>
-                      LiveKit Server URL
+                      {t('LiveKit Server URL')}
                     </label>
                     <Input
                       placeholder="wss://your-project.livekit.cloud"
@@ -511,7 +514,7 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
                   </div>
                   <div>
                     <label className="text-[11px] font-medium mb-1 block" style={{ color: '#4A4860' }}>
-                      API Key
+                      {t('API Key')}
                     </label>
                     <Input
                       placeholder="APIxxxxxxxxx"
@@ -522,11 +525,11 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
                   </div>
                   <div>
                     <label className="text-[11px] font-medium mb-1 block" style={{ color: '#4A4860' }}>
-                      API Secret
+                      {t('API Secret')}
                     </label>
                     <Input
                       type="password"
-                      placeholder="Your LiveKit API secret"
+                      placeholder={t('Your LiveKit API secret')}
                       value={livekitConfig.livekit_api_secret}
                       onChange={(e) => setLivekitConfig((c) => ({ ...c, livekit_api_secret: e.target.value }))}
                       className="h-8 text-[13px]"
@@ -543,7 +546,7 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
                         style={{ accentColor: '#7C5CFC' }}
                       />
                       <span className="text-[13px] font-medium" style={{ color: '#2D2B3D' }}>
-                        Enable calls
+                        {t('Enable calls')}
                       </span>
                     </label>
 
@@ -557,9 +560,9 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
                       {savingLivekit ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : livekitSaved ? (
-                        <><Check className="h-3 w-3 mr-1" />Saved</>
+                        <><Check className="h-3 w-3 mr-1" />{t('Saved successfully')}</>
                       ) : (
-                        'Save'
+                        t('Save')
                       )}
                     </Button>
                   </div>
@@ -570,9 +573,9 @@ export function WorkspaceSettingsDialog({ open, onOpenChange }: WorkspaceSetting
 
           {/* Your role info */}
           <div className="px-3 py-2 rounded-lg text-[12px]" style={{ background: '#F5F2FF', color: '#8E8EA0' }}>
-            Your role: <strong style={{ color: '#2D2B3D' }}>{roleLabel(workspaceRole || 'member')}</strong>
-            {isAdmin && ' — You can manage members and workspace settings.'}
-            {!isAdmin && ' — Contact an admin to change workspace settings.'}
+            {t('Your role:')} <strong style={{ color: '#2D2B3D' }}>{roleLabel(workspaceRole || 'member')}</strong>
+            {isAdmin && <> {t('— You can manage members and workspace settings.')}</>}
+            {!isAdmin && <> {t('— Contact an admin to change workspace settings.')}</>}
           </div>
         </div>
         )}

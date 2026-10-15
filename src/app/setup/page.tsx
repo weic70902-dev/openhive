@@ -20,6 +20,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { provision, verifyTables, configureSiteUrl, validateToken } from '@/lib/supabase/provisioner'
+import { useT } from '@/lib/i18n'
 
 type Step = 'welcome' | 'connect' | 'provisioning' | 'done'
 
@@ -46,6 +47,8 @@ export default function SetupPage() {
       .catch(() => {})
   }, [])
 
+  const t = useT()
+
   function handleTokenChange(value: string) {
     setAccessToken(value)
     const trimmed = value.trim()
@@ -53,10 +56,10 @@ export default function SetupPage() {
       setTokenWarning(null)
     } else if (trimmed.startsWith('eyJ')) {
       setTokenWarning(
-        "This looks like a JWT key (anon/service_role), not a Personal Access Token. The token should start with sbp_"
+        t("This looks like a JWT key (anon/service_role), not a Personal Access Token. The token should start with sbp_")
       )
     } else if (!trimmed.startsWith('sbp_')) {
-      setTokenWarning("Personal Access Tokens start with sbp_. Make sure you're using the right token.")
+      setTokenWarning(t("Personal Access Tokens start with sbp_. Make sure you're using the right token."))
     } else {
       setTokenWarning(null)
     }
@@ -75,13 +78,13 @@ export default function SetupPage() {
       try {
         new URL(cleanURL)
       } catch {
-        throw new Error('Invalid Supabase URL. Please check the URL and try again.')
+        throw new Error(t('Invalid Supabase URL. Please check the URL and try again.'))
       }
 
       // Validate token
       if (!validateToken(cleanToken)) {
         throw new Error(
-          "Invalid token format. The Personal Access Token should start with 'sbp_'."
+          t("Invalid token format. The Personal Access Token should start with 'sbp_'.")
         )
       }
 
@@ -95,7 +98,7 @@ export default function SetupPage() {
       // Step 2: Save config to .env.local IMMEDIATELY after DB setup
       // This is the critical step — do it before optional steps so config isn't lost
       console.log('[setup] Step 2: Saving configuration...')
-      setProvisioningStatus('Saving configuration...')
+      setProvisioningStatus(t('Saving configuration...'))
       try {
         const res = await fetch('/api/setup', {
           method: 'POST',
@@ -111,7 +114,7 @@ export default function SetupPage() {
             console.log('[setup] Step 2: Production detected, env vars need manual config')
           } else {
             console.error('[setup] Step 2: Failed to save config:', data.error)
-            throw new Error(data.error || 'Failed to save configuration')
+            throw new Error(data.error || t('Failed to save configuration'))
           }
         } else {
           console.log('[setup] Step 2: .env.local written successfully')
@@ -137,7 +140,7 @@ export default function SetupPage() {
 
       // Step 4: Verify tables (optional — non-blocking)
       console.log('[setup] Step 4: Verifying tables...')
-      setProvisioningStatus('Verifying database...')
+      setProvisioningStatus(t('Verifying database...'))
       try {
         const missing = await verifyTables(cleanURL, cleanToken)
         if (missing.length > 0) {
@@ -154,7 +157,7 @@ export default function SetupPage() {
       setStep('done')
     } catch (err) {
       console.error('[setup] Setup failed:', err)
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('Unknown error'))
     }
   }
 
@@ -170,21 +173,21 @@ export default function SetupPage() {
         <div className="max-w-lg w-full space-y-8 text-center">
           <div className="space-y-4">
             <MessageSquare className="mx-auto h-16 w-16 text-primary" />
-            <h1 className="text-4xl font-bold tracking-tight">Welcome to OpenHive</h1>
+            <h1 className="text-4xl font-bold tracking-tight">{t('Welcome to OpenHive')}</h1>
             <p className="text-lg text-muted-foreground">
-              The open-source team communication platform
+              {t('The open-source team communication platform')}
             </p>
           </div>
 
           <div className="space-y-3 text-left">
-            <Feature icon={<Server className="h-5 w-5" />} title="Self-hosted" desc="Your data, your servers, your rules" />
-            <Feature icon={<Shield className="h-5 w-5" />} title="Secure" desc="Row-level security powered by Supabase" />
-            <Feature icon={<Phone className="h-5 w-5" />} title="Audio & Video" desc="Built-in calls with LiveKit WebRTC" />
-            <Feature icon={<Puzzle className="h-5 w-5" />} title="Extensible" desc="Webhooks, bots, slash commands" />
+            <Feature icon={<Server className="h-5 w-5" />} title={t('Self-hosted')} desc={t('Your data, your servers, your rules')} />
+            <Feature icon={<Shield className="h-5 w-5" />} title={t('Secure')} desc={t('Row-level security powered by Supabase')} />
+            <Feature icon={<Phone className="h-5 w-5" />} title={t('Audio & Video')} desc={t('Built-in calls with LiveKit WebRTC')} />
+            <Feature icon={<Puzzle className="h-5 w-5" />} title={t('Extensible')} desc={t('Webhooks, bots, slash commands')} />
           </div>
 
           <Button size="lg" className="w-full max-w-xs" onClick={() => setStep('connect')}>
-            Get Started <ArrowRight className="ml-2 h-4 w-4" />
+            {t('Get Started')} <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       )}
@@ -193,15 +196,14 @@ export default function SetupPage() {
         <Card className="max-w-lg w-full">
           <CardHeader className="text-center">
             <Server className="mx-auto h-12 w-12 text-green-500 mb-2" />
-            <CardTitle>Connect your Supabase project</CardTitle>
+            <CardTitle>{t('Connect your Supabase project')}</CardTitle>
             <CardDescription>
-              OpenHive will automatically create all 23 tables, security policies, triggers, and
-              realtime config.
+              {t('OpenHive will automatically create all 23 tables, security policies, triggers, and realtime config.')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="url">Supabase Project URL</Label>
+              <Label htmlFor="url">{t('Supabase Project URL')}</Label>
               <Input
                 id="url"
                 placeholder="https://xxxxx.supabase.co"
@@ -212,7 +214,7 @@ export default function SetupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="anon">Anon (Public) Key</Label>
+              <Label htmlFor="anon">{t('Anon (Public) Key')}</Label>
               <Input
                 id="anon"
                 type="password"
@@ -227,8 +229,8 @@ export default function SetupPage() {
 
             <div className="border-t pt-4 space-y-2">
               <div className="flex items-center gap-2">
-                <Label htmlFor="token">Personal Access Token</Label>
-                <span className="text-xs text-orange-500 font-medium">(used once, not saved)</span>
+                <Label htmlFor="token">{t('Personal Access Token')}</Label>
+                <span className="text-xs text-orange-500 font-medium">{t('(used once, not saved)')}</span>
               </div>
               <Input
                 id="token"
@@ -245,7 +247,7 @@ export default function SetupPage() {
               )}
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <ExternalLink className="h-3 w-3" />
-                <span>Generate at</span>
+                <span>{t('Generate at')}</span>
                 <a
                   href="https://supabase.com/dashboard/account/tokens"
                   target="_blank"
@@ -256,8 +258,7 @@ export default function SetupPage() {
                 </a>
               </div>
               <p className="text-xs text-muted-foreground">
-                This is NOT the anon key or service_role key. It&apos;s a Personal Access Token (starts
-                with sbp_) from your Supabase account settings.
+                {t("This is NOT the anon key or service_role key. It's a Personal Access Token (starts with sbp_) from your Supabase account settings.")}
               </p>
             </div>
 
@@ -269,10 +270,10 @@ export default function SetupPage() {
 
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => setStep('welcome')}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                <ArrowLeft className="mr-2 h-4 w-4" /> {t('Back')}
               </Button>
               <Button className="flex-1" disabled={!canConnect} onClick={startProvisioning}>
-                Connect & Setup
+                {t('Connect & Setup')}
               </Button>
             </div>
           </CardContent>
@@ -286,7 +287,7 @@ export default function SetupPage() {
           ) : (
             <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
           )}
-          <h2 className="text-2xl font-bold">{!error ? 'Setting up your workspace...' : 'Setup failed'}</h2>
+          <h2 className="text-2xl font-bold">{!error ? t('Setting up your workspace...') : t('Setup failed')}</h2>
           <p className="text-muted-foreground">{provisioningStatus}</p>
 
           {error && (
@@ -296,10 +297,10 @@ export default function SetupPage() {
               </div>
               <div className="flex gap-3 justify-center">
                 <Button onClick={() => { setError(null); startProvisioning() }}>
-                  <RotateCcw className="mr-2 h-4 w-4" /> Retry
+                  <RotateCcw className="mr-2 h-4 w-4" /> {t('Retry')}
                 </Button>
                 <Button variant="outline" onClick={() => { setError(null); setStep('connect') }}>
-                  Back to setup
+                  {t('Back to setup')}
                 </Button>
               </div>
             </div>
@@ -310,20 +311,19 @@ export default function SetupPage() {
       {step === 'done' && (
         <div className="max-w-md w-full space-y-6 text-center">
           <Check className="mx-auto h-16 w-16 text-green-500" />
-          <h2 className="text-2xl font-bold">Database provisioned!</h2>
+          <h2 className="text-2xl font-bold">{t('Database provisioned!')}</h2>
           <p className="text-muted-foreground">
-            Your Supabase project has been configured with all 23 tables, security policies, and
-            realtime subscriptions.
+            {t('Your Supabase project has been configured with all 23 tables, security policies, and realtime subscriptions.')}
           </p>
           {!siteUrlConfigured && (
             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-md text-left space-y-2">
               <p className="text-sm font-semibold text-red-700 dark:text-red-400">
-                ⚠ Could not auto-configure the Supabase Site URL
+                {t('⚠ Could not auto-configure the Supabase Site URL')}
               </p>
               <p className="text-xs text-red-600 dark:text-red-400">
-                Invitation and password-reset emails will point to <strong>localhost</strong> instead of your domain.
-                To fix this, go to <strong>Supabase Dashboard → Authentication → URL Configuration</strong> and
-                set the <strong>Site URL</strong> to your production URL.
+                {t('Invitation and password-reset emails will point to')} <strong>localhost</strong>{' '}
+                {t('instead of your domain. To fix this, go to')} <strong>Supabase Dashboard → Authentication → URL Configuration</strong>{' '}
+                {t('and set the')} <strong>{t('Site URL')}</strong> {t('to your production URL.')}
               </p>
             </div>
           )}
@@ -331,7 +331,7 @@ export default function SetupPage() {
             <>
               <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-md text-left space-y-3">
                 <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-                  Set these environment variables in your hosting platform (Vercel, Railway, etc.):
+                  {t('Set these environment variables in your hosting platform (Vercel, Railway, etc.):')}
                 </p>
                 <div className="space-y-2">
                   <div className="bg-muted rounded p-2">
@@ -342,22 +342,22 @@ export default function SetupPage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  After setting them, redeploy your app. You can also add <code className="bg-muted px-1 py-0.5 rounded">SUPABASE_SERVICE_ROLE_KEY</code> for email invitations and file uploads.
+                  {t('After setting them, redeploy your app. You can also add')} <code className="bg-muted px-1 py-0.5 rounded">SUPABASE_SERVICE_ROLE_KEY</code> {t('for email invitations and file uploads.')}
                 </p>
               </div>
               <Button size="lg" onClick={() => window.location.href = '/auth'}>
-                I&apos;ve set the env vars — Go to sign up
+                {t("I've set the env vars — Go to sign up")}
               </Button>
             </>
           ) : (
             <>
               <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-md">
                 <p className="text-sm text-amber-700 dark:text-amber-400">
-                  <strong>Important:</strong> Please restart your dev server (<code className="bg-muted px-1 py-0.5 rounded">Ctrl+C</code> then <code className="bg-muted px-1 py-0.5 rounded">npm run dev</code>) for the new configuration to take effect.
+                  <strong>{t('Important:')}</strong> {t('Please restart your dev server (')}<code className="bg-muted px-1 py-0.5 rounded">Ctrl+C</code> {t('then')} <code className="bg-muted px-1 py-0.5 rounded">npm run dev</code>{t(') for the new configuration to take effect.')}
                 </p>
               </div>
               <Button size="lg" onClick={() => window.location.reload()}>
-                I&apos;ve restarted — Continue
+                {t("I've restarted — Continue")}
               </Button>
             </>
           )}

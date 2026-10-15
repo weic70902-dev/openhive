@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getStorageProvider, KNOWN_BUCKETS } from '@/lib/storage'
 
 // Allowed MIME types for uploads
 const ALLOWED_MIME_TYPES = new Set([
@@ -21,15 +22,18 @@ const ALLOWED_MIME_TYPES = new Set([
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5 MB
 
-// POST: Upload a file to Supabase Storage using the service role key
+/** 上传结果缓存一年 —— 对象键含时间戳与随机串,内容不会变 */
+const CACHE_CONTROL = '31536000'
+
+// POST: Upload a file using the configured storage backend
 export async function POST(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!url || !serviceKey || !anonKey) {
+  // Supabase 在这里只承担「校验调用者身份」的职责,与文件存到哪里无关
+  if (!url || !anonKey) {
     return NextResponse.json(
-      { error: 'Server not configured with service role key' },
+      { error: 'Server not configured: missing Supabase URL or anon key' },
       { status: 500 }
     )
   }
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate bucket name
-    if (!['avatars', 'attachments'].includes(bucket)) {
+    if (!KNOWN_BUCKETS.includes(bucket as (typeof KNOWN_BUCKETS)[number])) {
       return NextResponse.json(
         { error: 'Invalid bucket name' },
         { status: 400 }
@@ -96,37 +100,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createClient(url, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
+    // 交由存储后端处理。可能是 Supabase Storage,也可能是 S3 兼容对象存储
+    const provider = getStorageProvider()
+    const buffer = await file.arrayBuffer()
+
+    const result = await provider.upload(buffer, {
+      path: sanitizedPath,
+      contentType: file.type || 'application/octet-stream',
+      bucket,
+      cacheControl: CACHE_CONTROL,
     })
-
-    // Convert File to ArrayBuffer for upload
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(sanitizedPath, buffer, {
-        upsert: true,
-        contentType: file.type,
-      })
-
-    if (uploadError) {
-      return NextResponse.json(
-        { error: uploadError.message },
-        { status: 500 }
-      )
-    }
-
-    const { data: urlData } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(sanitizedPath)
 
     return NextResponse.json({
       success: true,
-      publicUrl: urlData.publicUrl,
+      publicUrl: result.url,
+      provider: result.provider,
+      path: result.path,
     })
   } catch (error) {
+    console.error('[api/upload] 上传失败:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Upload failed' },
       { status: 500 }

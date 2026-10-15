@@ -15,6 +15,7 @@ import {
 import { Track } from 'livekit-client'
 import { useAppStore } from '@/lib/store/app-store'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useT } from '@/lib/i18n'
 import {
   Mic,
   MicOff,
@@ -40,12 +41,13 @@ export function CallPanel() {
     leaveCall,
     channels,
   } = useAppStore()
+  const t = useT()
 
   if (!isInCall || !activeCall || !callToken || !callUrl) {
     return null
   }
 
-  const channelName = channels.find((c) => c.id === activeCall.channel_id)?.name || 'Unknown'
+  const channelName = channels.find((c) => c.id === activeCall.channel_id)?.name || t('Unknown')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)' }}>
@@ -84,6 +86,7 @@ function CallContent({ channelName }: { channelName: string }) {
     ],
     { onlySubscribed: false }
   )
+  const t = useT()
 
   // Update participant state in Supabase
   const updateParticipantState = useCallback(async () => {
@@ -241,7 +244,7 @@ function CallContent({ channelName }: { channelName: string }) {
           <span className="text-white font-semibold text-lg">#{channelName}</span>
           <span className="text-sm flex items-center gap-1" style={{ color: '#8E8EA0' }}>
             <Users className="h-3.5 w-3.5" />
-            {participants.length} participant{participants.length !== 1 ? 's' : ''}
+            {participants.length} {t('participant')}{participants.length !== 1 ? 's' : ''}
           </span>
         </div>
         <button
@@ -274,7 +277,7 @@ function CallContent({ channelName }: { channelName: string }) {
               />
               <div className="absolute bottom-3 left-3 px-2 py-1 rounded-lg text-xs text-white font-medium flex items-center gap-1.5" style={{ background: 'rgba(0,0,0,0.6)' }}>
                 <Monitor className="h-3 w-3" />
-                {track.participant.name || track.participant.identity} (screen)
+                {track.participant.name || track.participant.identity} {t('(screen)')}
               </div>
             </div>
           ))}
@@ -317,7 +320,7 @@ function CallContent({ channelName }: { channelName: string }) {
                     <MicOff className="h-3 w-3 text-red-400" />
                   )}
                   {participant.name || participant.identity}
-                  {participant.isLocal && ' (You)'}
+                  {participant.isLocal && ` (${t('You')})`}
                 </div>
               </div>
             )
@@ -338,7 +341,7 @@ function CallContent({ channelName }: { channelName: string }) {
           onClick={toggleMute}
           className="h-12 w-12 rounded-2xl flex items-center justify-center transition-all hover:scale-105"
           style={{ background: isMuted ? '#E55B5B' : 'rgba(255,255,255,0.1)' }}
-          title={isMuted ? 'Unmute' : 'Mute'}
+          title={isMuted ? t('Unmute') : t('Mute')}
         >
           {isMuted ? (
             <MicOff className="h-5 w-5 text-white" />
@@ -351,7 +354,7 @@ function CallContent({ channelName }: { channelName: string }) {
           onClick={toggleCamera}
           className="h-12 w-12 rounded-2xl flex items-center justify-center transition-all hover:scale-105"
           style={{ background: isCameraOn ? '#7C5CFC' : 'rgba(255,255,255,0.1)' }}
-          title={isCameraOn ? 'Turn off camera' : 'Turn on camera'}
+          title={isCameraOn ? t('Turn off camera') : t('Turn on camera')}
         >
           {isCameraOn ? (
             <Video className="h-5 w-5 text-white" />
@@ -364,7 +367,7 @@ function CallContent({ channelName }: { channelName: string }) {
           onClick={toggleScreenShare}
           className="h-12 w-12 rounded-2xl flex items-center justify-center transition-all hover:scale-105"
           style={{ background: isScreenSharing ? '#7C5CFC' : 'rgba(255,255,255,0.1)' }}
-          title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+          title={isScreenSharing ? t('Stop sharing') : t('Share screen')}
         >
           <Monitor className="h-5 w-5 text-white" />
         </button>
@@ -375,10 +378,10 @@ function CallContent({ channelName }: { channelName: string }) {
           onClick={handleLeave}
           className="h-12 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all hover:scale-105 text-white font-semibold text-sm"
           style={{ background: '#E55B5B' }}
-          title="Leave call"
+          title={t('Leave call')}
         >
           <PhoneOff className="h-5 w-5" />
-          Leave
+          {t('Leave')}
         </button>
       </div>
     </div>

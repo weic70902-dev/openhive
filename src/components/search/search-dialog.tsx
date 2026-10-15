@@ -5,8 +5,8 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store/app-store'
 import { Search, Hash, Lock, MessageSquare, User, Loader2, ArrowRight, Clock, Sparkles } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { useT, useRelativeTime } from '@/lib/i18n'
 import type { Channel, Message, Profile } from '@/types/database'
 
 interface SearchDialogProps {
@@ -27,6 +27,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [activeIndex, setActiveIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const resultsRef = useRef<HTMLDivElement>(null)
+  const t = useT()
+  const relativeTime = useRelativeTime()
 
   const search = useCallback(
     async (q: string) => {
@@ -107,7 +109,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             messages.forEach((m) =>
               all.push({
                 type: 'message',
-                message: { ...m, channel_name: channelMap.get(m.channel_id) || 'unknown' } as Message & { sender?: Profile; channel_name?: string },
+                message: { ...m, channel_name: channelMap.get(m.channel_id) || t('unknown') } as Message & { sender?: Profile; channel_name?: string },
               })
             )
           }
@@ -229,7 +231,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
           <Search className="h-5 w-5 text-muted-foreground/60 shrink-0" />
           <input
             ref={inputRef}
-            placeholder="Search messages, channels, people..."
+            placeholder={t('Search messages, channels, people...')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -240,7 +242,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         </div>
 
         {/* Results area */}
-        <div ref={resultsRef} className="max-h-[420px] overflow-y-auto">
+        <div ref={resultsRef} className="max-h-[min(420px,55vh)] overflow-y-auto">
           {!query.trim() ? (
             /* ===== EMPTY STATE ===== */
             <div className="px-4 py-5">
@@ -250,7 +252,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   <div className="flex items-center gap-2 mb-2.5">
                     <Clock className="h-3.5 w-3.5 text-muted-foreground/50" />
                     <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
-                      Recent
+                      {t('Recent')}
                     </span>
                   </div>
                   <div className="space-y-0.5">
@@ -278,9 +280,9 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
               {/* Search tips */}
               <div className="rounded-lg border border-dashed border-border/60 p-4 text-center">
                 <Sparkles className="mx-auto h-5 w-5 text-primary/40 mb-2" />
-                <p className="text-sm font-medium text-muted-foreground/80">Search your workspace</p>
+                <p className="text-sm font-medium text-muted-foreground/80">{t('Search your workspace')}</p>
                 <p className="text-xs text-muted-foreground/50 mt-1">
-                  Find messages, channels, and people
+                  {t('Find messages, channels, and people')}
                 </p>
               </div>
             </div>
@@ -289,10 +291,10 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             <div className="px-4 py-10 text-center">
               <Search className="mx-auto h-8 w-8 text-muted-foreground/20 mb-3" />
               <p className="text-sm font-medium text-muted-foreground/70">
-                No results for &quot;{query}&quot;
+                {t('No results for "{query}"', { query })}
               </p>
               <p className="text-xs text-muted-foreground/50 mt-1">
-                Try a different search term
+                {t('Try a different search term')}
               </p>
             </div>
           ) : (
@@ -304,7 +306,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   <div className="flex items-center gap-2 px-4 py-2">
                     <Hash className="h-3 w-3 text-muted-foreground/50" />
                     <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
-                      Channels
+                      {t('Channels')}
                     </span>
                     <span className="text-[11px] text-muted-foreground/40">{channelResults.length}</span>
                   </div>
@@ -359,7 +361,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   <div className="flex items-center gap-2 px-4 py-2">
                     <User className="h-3 w-3 text-muted-foreground/50" />
                     <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
-                      People
+                      {t('People')}
                     </span>
                     <span className="text-[11px] text-muted-foreground/40">{userResults.length}</span>
                   </div>
@@ -418,7 +420,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   <div className="flex items-center gap-2 px-4 py-2">
                     <MessageSquare className="h-3 w-3 text-muted-foreground/50" />
                     <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
-                      Messages
+                      {t('Messages')}
                     </span>
                     <span className="text-[11px] text-muted-foreground/40">{messageResults.length}</span>
                   </div>
@@ -452,13 +454,13 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold">
-                              {m.sender?.display_name || 'Unknown'}
+                              {m.sender?.display_name || t('Unknown')}
                             </span>
                             <span className="text-[11px] text-muted-foreground/50">
-                              in #{m.channel_name}
+                              {t('in')} #{m.channel_name}
                             </span>
                             <span className="text-[11px] text-muted-foreground/40 ml-auto shrink-0">
-                              {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
+                              {relativeTime(m.created_at)}
                             </span>
                           </div>
                           <p className="text-sm text-muted-foreground/70 truncate mt-0.5">
@@ -479,15 +481,15 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
           <div className="flex items-center gap-1.5">
             <kbd className="h-4 min-w-4 px-1 rounded bg-muted text-[10px] font-mono flex items-center justify-center border border-border/50">↑</kbd>
             <kbd className="h-4 min-w-4 px-1 rounded bg-muted text-[10px] font-mono flex items-center justify-center border border-border/50">↓</kbd>
-            <span>navigate</span>
+            <span>{t('navigate')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <kbd className="h-4 min-w-4 px-1 rounded bg-muted text-[10px] font-mono flex items-center justify-center border border-border/50">↵</kbd>
-            <span>open</span>
+            <span>{t('open')}</span>
           </div>
           <div className="flex items-center gap-1.5 ml-auto">
             <kbd className="h-4 min-w-4 px-1 rounded bg-muted text-[10px] font-mono flex items-center justify-center border border-border/50">esc</kbd>
-            <span>close</span>
+            <span>{t('close')}</span>
           </div>
         </div>
       </DialogContent>

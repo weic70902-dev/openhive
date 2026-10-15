@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store/app-store'
 import { Bookmark, X, Loader2, Trash2, Wrench } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { useT, useRelativeTime } from '@/lib/i18n'
 import type { Message, SavedItem } from '@/types/database'
 
 interface SavedItemsPanelProps {
@@ -43,6 +43,8 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
   const [pat, setPat] = useState('')
   const [fixing, setFixing] = useState(false)
   const [fixError, setFixError] = useState<string | null>(null)
+  const t = useT()
+  const relativeTime = useRelativeTime()
 
   useEffect(() => {
     if (!open || !user || !workspace) return
@@ -88,7 +90,7 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
     const match = supabaseUrl.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)
     if (!match) {
-      setFixError('Could not extract project ref from Supabase URL.')
+      setFixError(t('Could not extract project ref from Supabase URL.'))
       return
     }
     const projectRef = match[1]
@@ -104,7 +106,7 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
       const result = await res.json()
 
       if (!res.ok) {
-        setFixError(result.error || 'Failed to create table')
+        setFixError(result.error || t('Failed to create table'))
         return
       }
 
@@ -114,7 +116,7 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
       setLoadError(null)
       await loadSavedItems()
     } catch (err) {
-      setFixError(err instanceof Error ? err.message : 'Unknown error')
+      setFixError(err instanceof Error ? err.message : t('Unknown error'))
     } finally {
       setFixing(false)
     }
@@ -147,7 +149,7 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
         <div className="flex items-center justify-between px-5 py-4 shrink-0" style={{ borderBottom: '1px solid #E5E1EE' }}>
           <div className="flex items-center gap-2">
             <Bookmark className="h-5 w-5" style={{ color: '#7C5CFC' }} />
-            <h2 className="font-bold text-[17px]" style={{ color: '#2D2B3D' }}>Saved Items</h2>
+            <h2 className="font-bold text-[17px]" style={{ color: '#2D2B3D' }}>{t('Saved Items')}</h2>
             {savedItems.length > 0 && (
               <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#EDE5FF', color: '#7C5CFC' }}>
                 {savedItems.length}
@@ -169,16 +171,16 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
               <div className="h-14 w-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: '#FEE2E2' }}>
                 <Bookmark className="h-7 w-7" style={{ color: '#E55B5B' }} />
               </div>
-              <h3 className="text-base font-bold mb-1" style={{ color: '#2D2B3D' }}>Database update needed</h3>
+              <h3 className="text-base font-bold mb-1" style={{ color: '#2D2B3D' }}>{t('Database update needed')}</h3>
               <p className="text-sm mb-4" style={{ color: '#8E8EA0' }}>
-                The saved_items table is missing. Click below to create it using your Supabase access token.
+                {t('The saved_items table is missing. Click below to create it using your Supabase access token.')}
               </p>
 
               {showFix ? (
                 <div className="w-full max-w-xs space-y-3">
                   <div>
                     <label className="text-[11px] font-medium mb-1 block text-left" style={{ color: '#4A4860' }}>
-                      Supabase Personal Access Token
+                      {t('Supabase Personal Access Token')}
                     </label>
                     <input
                       type="password"
@@ -191,7 +193,7 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
                       autoFocus
                     />
                     <p className="text-[10px] mt-1 text-left" style={{ color: '#8E8EA0' }}>
-                      Get it from{' '}
+                      {t('Get it from')}{' '}
                       <a
                         href="https://supabase.com/dashboard/account/tokens"
                         target="_blank"
@@ -214,7 +216,7 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
                       className="flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-colors hover:bg-gray-50"
                       style={{ borderColor: '#E5E1EE', color: '#8E8EA0' }}
                     >
-                      Cancel
+                      {t('Cancel')}
                     </button>
                     <button
                       onClick={handleFix}
@@ -223,7 +225,7 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
                       style={{ background: '#7C5CFC' }}
                     >
                       {fixing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wrench className="h-3.5 w-3.5" />}
-                      {fixing ? 'Creating...' : 'Create table'}
+                      {fixing ? t('Creating...') : t('Create table')}
                     </button>
                   </div>
                 </div>
@@ -234,23 +236,23 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
                   style={{ background: '#7C5CFC' }}
                 >
                   <Wrench className="h-4 w-4" />
-                  Fix now
+                  {t('Fix now')}
                 </button>
               )}
             </div>
           ) : loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-5 w-5 animate-spin mr-2" style={{ color: '#7C5CFC' }} />
-              <span style={{ color: '#8E8EA0' }}>Loading saved items...</span>
+              <span style={{ color: '#8E8EA0' }}>{t('Loading saved items...')}</span>
             </div>
           ) : savedItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
               <div className="h-14 w-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: '#EDE5FF' }}>
                 <Bookmark className="h-7 w-7" style={{ color: '#7C5CFC' }} />
               </div>
-              <h3 className="text-base font-bold mb-1" style={{ color: '#2D2B3D' }}>No saved items yet</h3>
+              <h3 className="text-base font-bold mb-1" style={{ color: '#2D2B3D' }}>{t('No saved items yet')}</h3>
               <p className="text-sm" style={{ color: '#8E8EA0' }}>
-                Click the bookmark icon on any message to save it here for later.
+                {t('Click the bookmark icon on any message to save it here for later.')}
               </p>
             </div>
           ) : (
@@ -258,10 +260,10 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
               {savedItems.map((item) => {
                 const msg = item.message
                 const sender = msg.sender
-                const displayName = sender?.display_name || 'Unknown'
+                const displayName = sender?.display_name || t('Unknown')
                 const initial = displayName[0]?.toUpperCase() || '?'
-                const time = formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })
-                const savedTime = formatDistanceToNow(new Date(item.created_at), { addSuffix: true })
+                const time = relativeTime(msg.created_at)
+                const savedTime = relativeTime(item.created_at)
 
                 return (
                   <div
@@ -293,7 +295,7 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
                         </p>
                         <div className="flex items-center gap-2 mt-1.5">
                           <span className="text-[11px]" style={{ color: '#8E8EA0' }}>
-                            Saved {savedTime}
+                            {t('Saved')} {savedTime}
                           </span>
                         </div>
                       </div>
@@ -304,7 +306,7 @@ export function SavedItemsPanel({ open, onClose }: SavedItemsPanelProps) {
                           handleRemove(item)
                         }}
                         className="h-7 w-7 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#EDE5FF]"
-                        title="Remove from saved"
+                        title={t('Remove from saved')}
                       >
                         <Trash2 className="h-3.5 w-3.5" style={{ color: '#E55B5B' }} />
                       </button>

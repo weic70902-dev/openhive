@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useT } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -46,6 +47,8 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
     }
   }, [open])
 
+  const t = useT()
+
   async function handleSaveServiceKey() {
     if (!serviceKey.trim()) return
     setSavingKey(true)
@@ -59,10 +62,10 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
       if (data.success) {
         setNeedsRestart(true)
       } else {
-        setError(data.error || 'Failed to save')
+        setError(data.error || t('Failed to save'))
       }
     } catch {
-      setError('Failed to save service key')
+      setError(t('Failed to save service key'))
     } finally {
       setSavingKey(false)
     }
@@ -97,19 +100,19 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Failed to invite')
+        setError(data.error || t('Failed to invite'))
         return
       }
 
       if (data.added) {
-        setSuccess(`✅ ${data.displayName || email} has been added to ${workspace.name}!`)
+        setSuccess(t('✅ {name} has been added to {workspace}!', { name: data.displayName || email, workspace: workspace.name }))
       } else if (data.invited) {
-        setSuccess(`📧 Invitation email sent to ${email.trim()}! They'll join ${workspace.name} when they accept.`)
+        setSuccess(t("📧 Invitation email sent to {email}! They'll join {workspace} when they accept.", { email: email.trim(), workspace: workspace.name }))
       }
 
       setEmail('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send invite')
+      setError(err instanceof Error ? err.message : t('Failed to send invite'))
     } finally {
       setLoading(false)
     }
@@ -127,15 +130,16 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Setup email invitations</DialogTitle>
+            <DialogTitle>{t('Setup email invitations')}</DialogTitle>
             <DialogDescription>
-              To send invite emails, OpenHive needs your Supabase <strong>service_role key</strong>. This is stored server-side only and never exposed to the browser.
+              {t('To send invite emails, OpenHive needs your Supabase')} <strong>service_role key</strong>
+              {t('. This is stored server-side only and never exposed to the browser.')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="service-key">Service Role Key</Label>
+              <Label htmlFor="service-key">{t('Service Role Key')}</Label>
               <div className="relative">
                 <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -160,15 +164,15 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
 
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button className="flex-1" onClick={handleSaveServiceKey} disabled={savingKey || !serviceKey.trim()}>
-                {savingKey ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save & Enable'}
+                {savingKey ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Save & Enable')}
               </Button>
             </div>
 
             <div className="border-t pt-3 space-y-2">
-              <p className="text-xs text-muted-foreground">Or share the invite link manually:</p>
+              <p className="text-xs text-muted-foreground">{t('Or share the invite link manually:')}</p>
               <div className="flex gap-2">
                 <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-muted rounded-md text-xs text-muted-foreground truncate">
                   <Link2 className="h-3 w-3 shrink-0" />
@@ -191,15 +195,18 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Restart required</DialogTitle>
+            <DialogTitle>{t('Restart required')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 text-center">
             <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
             <p className="text-sm text-muted-foreground">
-              Service role key saved! Please restart your dev server (<code className="bg-muted px-1 py-0.5 rounded">Ctrl+C</code> then <code className="bg-muted px-1 py-0.5 rounded">npm run dev</code>) for the change to take effect.
+              {t('Service role key saved! Please restart your dev server (')}<code className="bg-muted px-1 py-0.5 rounded">Ctrl+C</code>{' '}
+              {t('then')}{' '}
+              <code className="bg-muted px-1 py-0.5 rounded">npm run dev</code>
+              {t(') for the change to take effect.')}
             </p>
             <Button onClick={() => { setNeedsRestart(false); setHasServiceKey(true); onOpenChange(false) }}>
-              I&apos;ve restarted
+              {t("I've restarted")}
             </Button>
           </div>
         </DialogContent>
@@ -212,29 +219,29 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Invite people to {workspace?.name}</DialogTitle>
+          <DialogTitle>{t('Invite people to {workspace}', { workspace: workspace?.name || '' })}</DialogTitle>
           <DialogDescription>
-            Send an email invitation or share the invite link.
+            {t('Send an email invitation or share the invite link.')}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleInvite} className="space-y-4 overflow-hidden">
           <div className="space-y-2">
-            <Label htmlFor="invite-email">Email address</Label>
+            <Label htmlFor="invite-email">{t('Email address')}</Label>
             <div className="flex gap-2 min-w-0">
               <div className="relative flex-1 min-w-0">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="invite-email"
                   type="email"
-                  placeholder="colleague@company.com"
+                  placeholder={t('colleague@company.com')}
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(null); setSuccess(null) }}
                   className="pl-9 w-full"
                 />
               </div>
               <Button type="submit" disabled={loading || !email.trim()} className="shrink-0">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-1" /> Send</>}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-1" /> {t('Send')}</>}
               </Button>
             </div>
           </div>
@@ -255,14 +262,15 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
             <div className="flex items-start gap-2 p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-md">
               <Info className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
               <p className="text-xs text-blue-600 dark:text-blue-400">
-                Make sure your <strong>Supabase Site URL</strong> is set to your production domain (not localhost).
+                {t('Make sure your')} <strong>Supabase Site URL</strong>{' '}
+                {t('is set to your production domain (not localhost).')}{' '}
                 Go to Supabase Dashboard → Authentication → URL Configuration.
               </p>
             </div>
           </div>
 
           <div className="border-t pt-4 space-y-2">
-            <Label>Or share invite link</Label>
+            <Label>{t('Or share invite link')}</Label>
             <div className="flex gap-2 min-w-0">
               <div className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 bg-muted rounded-md text-sm text-muted-foreground">
                 <Link2 className="h-4 w-4 shrink-0" />

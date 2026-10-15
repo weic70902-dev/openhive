@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useT } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getSupabaseClient } from '@/lib/supabase/client'
@@ -21,6 +22,8 @@ export function BotSettings() {
   useEffect(() => {
     loadBots()
   }, [workspace])
+
+  const t = useT()
 
   async function loadBots() {
     const client = getSupabaseClient()
@@ -83,23 +86,23 @@ export function BotSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-semibold mb-1" style={{ color: '#2D2B3D' }}>Bots</h3>
+        <h3 className="text-sm font-semibold mb-1" style={{ color: '#2D2B3D' }}>{t('Bots')}</h3>
         <p className="text-xs" style={{ color: '#8E8EA0' }}>
-          Create bots that can send messages and respond to events.
+          {t('Create bots that can send messages and respond to events.')}
         </p>
       </div>
 
       {/* Create new bot */}
       <div className="p-4 rounded-xl border" style={{ borderColor: '#E5E1EE', background: '#F5F2FF' }}>
-        <p className="text-xs font-medium mb-3" style={{ color: '#4A4860' }}>Create new bot</p>
+        <p className="text-xs font-medium mb-3" style={{ color: '#4A4860' }}>{t('Create new bot')}</p>
         <div className="space-y-2">
           <Input
-            placeholder="Bot name"
+            placeholder={t('Bot name')}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
           />
           <Input
-            placeholder="Description (optional)"
+            placeholder={t('Description (optional)')}
             value={newDescription}
             onChange={(e) => setNewDescription(e.target.value)}
           />
@@ -111,18 +114,18 @@ export function BotSettings() {
             style={{ background: '#7C5CFC', color: '#fff' }}
           >
             <Plus className="h-4 w-4 mr-1" />
-            Create Bot
+            {t('Create Bot')}
           </Button>
         </div>
       </div>
 
       {/* Bot list */}
       {loading ? (
-        <p className="text-sm text-center py-4" style={{ color: '#8E8EA0' }}>Loading...</p>
+        <p className="text-sm text-center py-4" style={{ color: '#8E8EA0' }}>{t('Loading...')}</p>
       ) : bots.length === 0 ? (
         <div className="text-center py-8">
           <BotIcon className="h-8 w-8 mx-auto mb-2" style={{ color: '#DDD6F3' }} />
-          <p className="text-sm" style={{ color: '#8E8EA0' }}>No bots yet</p>
+          <p className="text-sm" style={{ color: '#8E8EA0' }}>{t('No bots yet')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -146,15 +149,15 @@ export function BotSettings() {
                   onClick={() => setShowToken(showToken === bot.id ? null : bot.id)}
                   className="h-7 px-2.5 rounded-lg flex items-center gap-1 text-xs font-medium transition-colors hover:bg-[#F5F2FF]"
                   style={{ color: '#7C5CFC' }}
-                  title="Show token"
+                  title={t('Show token')}
                 >
                   <Key className="h-3 w-3" />
-                  Token
+                  {t('Token')}
                 </button>
                 <button
                   onClick={() => deleteBot(bot.id)}
                   className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors"
-                  title="Delete bot"
+                  title={t('Delete bot')}
                 >
                   <Trash2 className="h-3.5 w-3.5 text-red-400" />
                 </button>

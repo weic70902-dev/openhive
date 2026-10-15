@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store/app-store'
+import { useT } from '@/lib/i18n'
 import { Circle, Search, X, Users, Check } from 'lucide-react'
 import type { Profile, Channel } from '@/types/database'
 
@@ -20,6 +21,7 @@ export function DmDialog({ open, onOpenChange }: DmDialogProps) {
   const [selectedMembers, setSelectedMembers] = useState<Profile[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
+  const t = useT()
 
   useEffect(() => {
     if (!open || !workspace) return
@@ -187,7 +189,7 @@ export function DmDialog({ open, onOpenChange }: DmDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Direct Messages</DialogTitle>
+          <DialogTitle>{t('Direct Messages')}</DialogTitle>
         </DialogHeader>
 
         {/* Selected members chips */}
@@ -211,7 +213,7 @@ export function DmDialog({ open, onOpenChange }: DmDialogProps) {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={selectedMembers.length > 0 ? "Add more people..." : "Search people..."}
+            placeholder={selectedMembers.length > 0 ? t('Add more people...') : t('Search people...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -222,7 +224,7 @@ export function DmDialog({ open, onOpenChange }: DmDialogProps) {
         <div className="max-h-64 overflow-y-auto space-y-1">
           {filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              {search ? 'No members found' : 'No other members in this workspace'}
+              {search ? t('No members found') : t('No other members in this workspace')}
             </p>
           ) : (
             filtered.map((member) => {
@@ -293,7 +295,7 @@ export function DmDialog({ open, onOpenChange }: DmDialogProps) {
             style={{ background: '#7C5CFC', color: '#fff' }}
           >
             <Users className="h-4 w-4 mr-2" />
-            Create Group DM ({selectedMembers.length + 1} people)
+            {t('Create Group DM ({count} people)', { count: selectedMembers.length + 1 })}
           </Button>
         )}
         {selectedMembers.length === 1 && (
@@ -303,7 +305,7 @@ export function DmDialog({ open, onOpenChange }: DmDialogProps) {
             className="w-full"
             style={{ background: '#7C5CFC', color: '#fff' }}
           >
-            Message {selectedMembers[0].display_name}
+            {t('Message {name}', { name: selectedMembers[0].display_name })}
           </Button>
         )}
       </DialogContent>

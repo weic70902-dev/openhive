@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store/app-store'
+import { useT } from '@/lib/i18n'
 import { Hash, Search, Users, Loader2, Check } from 'lucide-react'
 import type { Channel } from '@/types/database'
 
@@ -25,6 +26,7 @@ export function BrowseChannelsDialog({ open, onOpenChange }: BrowseChannelsDialo
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [joiningId, setJoiningId] = useState<string | null>(null)
+  const t = useT()
 
   useEffect(() => {
     if (!open || !workspace || !user) return
@@ -135,13 +137,13 @@ export function BrowseChannelsDialog({ open, onOpenChange }: BrowseChannelsDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Browse channels</DialogTitle>
+          <DialogTitle>{t('Browse channels')}</DialogTitle>
         </DialogHeader>
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search channels..."
+            placeholder={t('Search channels...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -156,7 +158,7 @@ export function BrowseChannelsDialog({ open, onOpenChange }: BrowseChannelsDialo
             </div>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-center py-8" style={{ color: '#8E8EA0' }}>
-              {search ? 'No channels match your search' : 'No public channels available'}
+              {search ? t('No channels match your search') : t('No public channels available')}
             </p>
           ) : (
             filtered.map((channel) => (
@@ -194,7 +196,7 @@ export function BrowseChannelsDialog({ open, onOpenChange }: BrowseChannelsDialo
                       style={{ color: '#8E8EA0' }}
                     >
                       <Users className="h-3 w-3" />
-                      {channel.memberCount} {channel.memberCount === 1 ? 'member' : 'members'}
+                      {channel.memberCount} {channel.memberCount === 1 ? t('member') : t('members')}
                     </span>
                     {channel.description && (
                       <>
@@ -213,7 +215,7 @@ export function BrowseChannelsDialog({ open, onOpenChange }: BrowseChannelsDialo
                     style={{ background: '#EDE5FF', color: '#7C5CFC' }}
                   >
                     <Check className="h-3 w-3" />
-                    Joined
+                    {t('Joined')}
                   </span>
                 ) : (
                   <Button
@@ -226,7 +228,7 @@ export function BrowseChannelsDialog({ open, onOpenChange }: BrowseChannelsDialo
                     {joiningId === channel.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
-                      'Join'
+                      t('Join')
                     )}
                   </Button>
                 )}

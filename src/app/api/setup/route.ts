@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { writeFileSync, readFileSync, existsSync } from 'fs'
 import { join } from 'path'
+import { currentStorageProviderName } from '@/lib/storage'
 
 // GET: Check if config exists
 export async function GET() {
@@ -8,7 +9,9 @@ export async function GET() {
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
   const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY
-  return NextResponse.json({ configured, hasServiceKey })
+  // 当前生效的存储后端:supabase(默认)或 s3(如 Cloudflare R2)
+  const storageProvider = currentStorageProviderName()
+  return NextResponse.json({ configured, hasServiceKey, storageProvider })
 }
 
 // POST: Write .env.local with Supabase config

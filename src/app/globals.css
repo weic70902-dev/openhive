@@ -281,9 +281,82 @@
   text-decoration: underline;
 }
 
-/* Scrollbar styling */
+/* Inline image preview — 图片消息内联渲染 */
+.message-content .chat-image {
+  display: block;
+  max-width: min(420px, 100%);
+  max-height: 360px;
+  width: auto;
+  height: auto;
+  margin: 0.4rem 0;
+  border-radius: 12px;
+  border: 1px solid #E5E1EE;
+  background: #F5F2FF;
+  object-fit: contain;
+  cursor: zoom-in;
+  transition: opacity 0.15s ease;
+}
+.message-content .chat-image:hover {
+  opacity: 0.92;
+}
+
+/* 纯表情消息(1-3 个)放大显示,贴近常见 IM 的观感 */
+.message-content.is-emoji-only {
+  font-size: 2.25rem;
+  line-height: 1.15;
+}
+.message-bubble .message-content.is-emoji-only {
+  padding: 0.1rem 0.15rem;
+}
+
+/* 私聊气泡布局 —— 对方靠左、自己靠右,样式对齐常见 IM */
+.message-bubble {
+  padding: 0.5rem 0.75rem;
+  border-radius: 16px;
+  border: 1px solid #E5E1EE;
+  background: #F5F2FF;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* 自己的消息用品牌紫实底 + 白字,内部富文本元素需要同步反色 */
+.message-bubble-own {
+  background: #7C5CFC;
+  border-color: #7C5CFC;
+}
+.message-bubble-own .message-content code {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+.message-bubble-own .message-content pre {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+.message-bubble-own .message-content pre code {
+  background: none;
+  border: none;
+  color: inherit;
+}
+.message-bubble-own .message-content .mention-highlight {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+.message-bubble-own .message-content a {
+  color: #ffffff;
+  text-decoration: underline;
+}
+.message-bubble-own .message-content .chat-image {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Scrollbar styling
+   注意:必须同时设置 width(纵向)和 height(横向)。只设 width 的话,
+   横向滚动条会退回浏览器默认高度(Windows 上约 15px),看起来就是一根很粗的紫条。 */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -294,6 +367,25 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #C4BAE8;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+/* Firefox 走标准属性,没有 ::-webkit-scrollbar */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #DDD6F3 transparent;
+  }
+}
+
+/* 仍可滚动但隐藏滚动条 —— 用于表情分组标签这类横向滑动区域 */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Mobile Responsive */

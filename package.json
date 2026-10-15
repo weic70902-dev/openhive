@@ -6,7 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "emoji:check": "node --experimental-strip-types scripts/check-emoji.mjs",
+    "disappearing:check": "node --experimental-strip-types scripts/check-disappearing.mjs",
+    "live:check": "node --experimental-strip-types scripts/check-live-preview.mjs",
+    "clear:check": "node --experimental-strip-types scripts/check-clear-conversation.mjs",
+    "toolbar:check": "node --experimental-strip-types scripts/check-message-toolbar.mjs",
+    "safe-area:check": "node scripts/check-safe-area.mjs",
+    "attachment-privacy:check": "node --experimental-strip-types scripts/check-attachment-privacy.mjs",
+    "toolbar:check": "node --experimental-strip-types scripts/check-message-toolbar.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -22,6 +31,7 @@
     "@tiptap/react": "^3.20.1",
     "@tiptap/starter-kit": "^3.20.1",
     "@types/dompurify": "^3.2.0",
+    "aws4fetch": "^1.0.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

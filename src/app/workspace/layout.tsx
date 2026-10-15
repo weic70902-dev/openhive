@@ -187,7 +187,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
             />
           )}
           {/* Drawer */}
-          <div className={`fixed left-0 top-0 h-full z-50 transition-transform duration-200 ease-out ${
+          <div className={`fixed left-0 top-0 h-full z-50 transition-transform duration-200 ease-out pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}>
             <Sidebar onNavigate={() => setSidebarOpen(false)} />

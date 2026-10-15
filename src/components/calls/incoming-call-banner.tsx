@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Phone, X } from 'lucide-react'
 import { useAppStore } from '@/lib/store/app-store'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useT } from '@/lib/i18n'
 import type { ActiveCall } from '@/types/database'
 
 export function IncomingCallBanner() {
@@ -14,6 +15,7 @@ export function IncomingCallBanner() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const ringtoneIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const dismissTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const t = useT()
 
   // Play ringtone using Web Audio API
   const startRingtone = useCallback(() => {
@@ -116,11 +118,11 @@ export function IncomingCallBanner() {
           const dmInfo = useAppStore.getState().dmChannels.find(d => d.id === call.channel_id)
           const channelName = ch?.name.startsWith('dm-') && dmInfo?.otherUser
             ? dmInfo.otherUser.display_name
-            : ch?.name ? `#${ch.name}` : 'Unknown'
+            : ch?.name ? `#${ch.name}` : t('Unknown')
 
           setIncomingCall({
             call,
-            callerName: caller?.display_name || 'Someone',
+            callerName: caller?.display_name || t('Someone'),
             channelName,
           })
         }
@@ -237,10 +239,10 @@ export function IncomingCallBanner() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white truncate">
-            {incomingCall.callerName} is calling
+            {incomingCall.callerName} {t('is calling')}
           </p>
           <p className="text-xs text-white/70 truncate">
-            in {incomingCall.channelName}
+            {t('in')} {incomingCall.channelName}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -250,7 +252,7 @@ export function IncomingCallBanner() {
             style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
           >
             <X className="h-3.5 w-3.5" />
-            Dismiss
+            {t('Dismiss')}
           </button>
           <button
             onClick={handleJoin}
@@ -259,7 +261,7 @@ export function IncomingCallBanner() {
             style={{ background: '#22C55E', color: '#fff' }}
           >
             <Phone className="h-3.5 w-3.5" />
-            {joining ? 'Joining...' : 'Join Call'}
+            {joining ? t('Joining...') : t('Join Call')}
           </button>
         </div>
       </div>

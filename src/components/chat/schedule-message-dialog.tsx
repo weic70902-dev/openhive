@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Clock, Calendar } from 'lucide-react'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store/app-store'
+import { useT } from '@/lib/i18n'
 
 interface ScheduleMessageDialogProps {
   open: boolean
@@ -21,6 +22,7 @@ export function ScheduleMessageDialog({ open, onOpenChange, content, channelId, 
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [scheduling, setScheduling] = useState(false)
+  const t = useT()
 
   // Preset options
   const presets = [
@@ -60,7 +62,7 @@ export function ScheduleMessageDialog({ open, onOpenChange, content, channelId, 
     if (!date || !time) return
     const scheduledFor = new Date(`${date}T${time}`)
     if (scheduledFor <= new Date()) {
-      alert('Please select a future date and time')
+      alert(t('Please select a future date and time'))
       return
     }
     await handleSchedule(scheduledFor)
@@ -72,12 +74,12 @@ export function ScheduleMessageDialog({ open, onOpenChange, content, channelId, 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" style={{ color: '#7C5CFC' }} />
-            Schedule Message
+            {t('Schedule Message')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-2">
-          <p className="text-xs font-medium" style={{ color: '#8E8EA0' }}>Quick options</p>
+          <p className="text-xs font-medium" style={{ color: '#8E8EA0' }}>{t('Quick options')}</p>
           {presets.map((preset) => (
             <button
               key={preset.label}
@@ -87,13 +89,13 @@ export function ScheduleMessageDialog({ open, onOpenChange, content, channelId, 
               style={{ color: '#2D2B3D' }}
             >
               <Calendar className="h-3.5 w-3.5" style={{ color: '#7C5CFC' }} />
-              {preset.label}
+              {t(preset.label)}
             </button>
           ))}
         </div>
 
         <div className="pt-2 border-t" style={{ borderColor: '#E5E1EE' }}>
-          <p className="text-xs font-medium mb-2" style={{ color: '#8E8EA0' }}>Custom date & time</p>
+          <p className="text-xs font-medium mb-2" style={{ color: '#8E8EA0' }}>{t('Custom date & time')}</p>
           <div className="flex gap-2">
             <Input
               type="date"
@@ -117,7 +119,7 @@ export function ScheduleMessageDialog({ open, onOpenChange, content, channelId, 
             disabled={!date || !time || scheduling}
             style={{ background: '#7C5CFC', color: '#fff' }}
           >
-            Schedule
+            {t('Schedule')}
           </Button>
         </DialogFooter>
       </DialogContent>

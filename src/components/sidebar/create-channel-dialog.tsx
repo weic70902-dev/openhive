@@ -14,6 +14,7 @@ import {
 import { Loader2, Hash, Lock, X, Circle } from 'lucide-react'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store/app-store'
+import { useT } from '@/lib/i18n'
 import type { Channel, Profile } from '@/types/database'
 
 interface CreateChannelDialogProps {
@@ -33,6 +34,7 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
   const [allMembers, setAllMembers] = useState<Profile[]>([])
   const [memberSearch, setMemberSearch] = useState('')
   const [selectedMembers, setSelectedMembers] = useState<Profile[]>([])
+  const t = useT()
 
   useEffect(() => {
     if (!open || !workspace) return
@@ -140,7 +142,7 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
       setCurrentChannelId(channel.id)
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create channel')
+      setError(err instanceof Error ? err.message : t('Failed to create channel'))
     } finally {
       setLoading(false)
     }
@@ -150,15 +152,15 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create a channel</DialogTitle>
+          <DialogTitle>{t('Create a channel')}</DialogTitle>
           <DialogDescription>
-            Channels are where your team communicates. They&apos;re best organized around a topic.
+            {t("Channels are where your team communicates. They're best organized around a topic.")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleCreate} className="space-y-4">
           {/* Channel name */}
           <div className="space-y-2">
-            <Label htmlFor="ch-name">Name</Label>
+            <Label htmlFor="ch-name">{t('Name')}</Label>
             <div className="relative">
               {isPrivate ? (
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -167,7 +169,7 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
               )}
               <Input
                 id="ch-name"
-                placeholder="e.g. marketing"
+                placeholder={t('e.g. marketing')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="pl-9"
@@ -176,17 +178,17 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
             </div>
             {name && (
               <p className="text-xs text-muted-foreground">
-                Channel will be created as <span className="font-mono">{isPrivate ? '🔒' : '#'}{formatChannelName(name)}</span>
+                {t('Channel will be created as')} <span className="font-mono">{isPrivate ? '🔒' : '#'}{formatChannelName(name)}</span>
               </p>
             )}
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="ch-desc">Description <span className="text-muted-foreground">(optional)</span></Label>
+            <Label htmlFor="ch-desc">{t('Description')} <span className="text-muted-foreground">{t('(optional)')}</span></Label>
             <Input
               id="ch-desc"
-              placeholder="What is this channel about?"
+              placeholder={t('What is this channel about?')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -194,7 +196,7 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
 
           {/* Visibility toggle */}
           <div className="space-y-2">
-            <Label>Visibility</Label>
+            <Label>{t('Visibility')}</Label>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -206,8 +208,8 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
               >
                 <Hash className="h-4 w-4" />
                 <div className="text-left">
-                  <div className="font-medium">Public</div>
-                  <div className="text-[11px] opacity-70">Anyone can join</div>
+                  <div className="font-medium">{t('Public')}</div>
+                  <div className="text-[11px] opacity-70">{t('Anyone can join')}</div>
                 </div>
               </button>
               <button
@@ -220,8 +222,8 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
               >
                 <Lock className="h-4 w-4" />
                 <div className="text-left">
-                  <div className="font-medium">Private</div>
-                  <div className="text-[11px] opacity-70">Invite only</div>
+                  <div className="font-medium">{t('Private')}</div>
+                  <div className="text-[11px] opacity-70">{t('Invite only')}</div>
                 </div>
               </button>
             </div>
@@ -229,7 +231,7 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
 
           {/* Add members */}
           <div className="space-y-2">
-            <Label>Add members <span className="text-muted-foreground">(optional)</span></Label>
+            <Label>{t('Add members')} <span className="text-muted-foreground">{t('(optional)')}</span></Label>
 
             {/* Selected members chips */}
             {selectedMembers.length > 0 && (
@@ -254,7 +256,7 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
             )}
 
             <Input
-              placeholder="Search members to add..."
+              placeholder={t('Search members to add...')}
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
             />
@@ -301,14 +303,14 @@ export function CreateChannelDialog({ open, onOpenChange }: CreateChannelDialogP
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button
               type="submit"
               disabled={loading || !formatChannelName(name)}
               style={{ background: '#7C5CFC', color: '#fff' }}
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Channel'}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Create Channel')}
             </Button>
           </div>
         </form>

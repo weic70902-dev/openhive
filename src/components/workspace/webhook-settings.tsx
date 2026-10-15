@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useT } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getSupabaseClient } from '@/lib/supabase/client'
@@ -20,6 +21,8 @@ export function WebhookSettings() {
   useEffect(() => {
     loadWebhooks()
   }, [workspace])
+
+  const t = useT()
 
   async function loadWebhooks() {
     const client = getSupabaseClient()
@@ -85,18 +88,18 @@ export function WebhookSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-semibold mb-1" style={{ color: '#2D2B3D' }}>Incoming Webhooks</h3>
+        <h3 className="text-sm font-semibold mb-1" style={{ color: '#2D2B3D' }}>{t('Incoming Webhooks')}</h3>
         <p className="text-xs" style={{ color: '#8E8EA0' }}>
-          Send messages to channels from external services via HTTP POST.
+          {t('Send messages to channels from external services via HTTP POST.')}
         </p>
       </div>
 
       {/* Create new webhook */}
       <div className="p-4 rounded-xl border" style={{ borderColor: '#E5E1EE', background: '#F5F2FF' }}>
-        <p className="text-xs font-medium mb-3" style={{ color: '#4A4860' }}>Create new webhook</p>
+        <p className="text-xs font-medium mb-3" style={{ color: '#4A4860' }}>{t('Create new webhook')}</p>
         <div className="flex gap-2">
           <Input
-            placeholder="Webhook name"
+            placeholder={t('Webhook name')}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             className="flex-1"
@@ -107,7 +110,7 @@ export function WebhookSettings() {
             className="h-9 rounded-md border px-3 text-sm bg-white"
             style={{ borderColor: '#E5E1EE', color: '#2D2B3D' }}
           >
-            <option value="">Select channel</option>
+            <option value="">{t('Select channel')}</option>
             {nonDmChannels.map(ch => (
               <option key={ch.id} value={ch.id}>#{ch.name}</option>
             ))}
@@ -119,18 +122,18 @@ export function WebhookSettings() {
             style={{ background: '#7C5CFC', color: '#fff' }}
           >
             <Plus className="h-4 w-4 mr-1" />
-            Create
+            {t('Create')}
           </Button>
         </div>
       </div>
 
       {/* Webhook list */}
       {loading ? (
-        <p className="text-sm text-center py-4" style={{ color: '#8E8EA0' }}>Loading...</p>
+        <p className="text-sm text-center py-4" style={{ color: '#8E8EA0' }}>{t('Loading...')}</p>
       ) : webhooks.length === 0 ? (
         <div className="text-center py-8">
           <Webhook className="h-8 w-8 mx-auto mb-2" style={{ color: '#DDD6F3' }} />
-          <p className="text-sm" style={{ color: '#8E8EA0' }}>No webhooks yet</p>
+          <p className="text-sm" style={{ color: '#8E8EA0' }}>{t('No webhooks yet')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -148,25 +151,25 @@ export function WebhookSettings() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" style={{ color: '#2D2B3D' }}>{webhook.name}</p>
                   <p className="text-xs truncate" style={{ color: '#8E8EA0' }}>
-                    → #{channel?.name || 'unknown'}
+                    → #{channel?.name || t('unknown')}
                   </p>
                 </div>
                 <button
                   onClick={() => copyWebhookUrl(webhook)}
                   className="h-7 px-2.5 rounded-lg flex items-center gap-1 text-xs font-medium transition-colors hover:bg-[#F5F2FF]"
                   style={{ color: '#7C5CFC' }}
-                  title="Copy webhook URL"
+                  title={t('Copy webhook URL')}
                 >
                   {copiedId === webhook.id ? (
-                    <><Check className="h-3 w-3" /> Copied</>
+                    <><Check className="h-3 w-3" /> {t('Copied')}</>
                   ) : (
-                    <><Copy className="h-3 w-3" /> Copy URL</>
+                    <><Copy className="h-3 w-3" /> {t('Copy URL')}</>
                   )}
                 </button>
                 <button
                   onClick={() => deleteWebhook(webhook.id)}
                   className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors"
-                  title="Delete webhook"
+                  title={t('Delete webhook')}
                 >
                   <Trash2 className="h-3.5 w-3.5 text-red-400" />
                 </button>
@@ -179,7 +182,7 @@ export function WebhookSettings() {
       {/* Usage example */}
       {webhooks.length > 0 && (
         <div className="p-4 rounded-xl border" style={{ borderColor: '#E5E1EE', background: '#FAFAFA' }}>
-          <p className="text-xs font-medium mb-2" style={{ color: '#4A4860' }}>Usage example</p>
+          <p className="text-xs font-medium mb-2" style={{ color: '#4A4860' }}>{t('Usage example')}</p>
           <pre className="text-xs rounded-lg p-3 overflow-x-auto" style={{ background: '#F5F2FF', color: '#4A4860' }}>
 {`curl -X POST \\
   ${typeof window !== 'undefined' ? window.location.origin : 'https://your-app.com'}/api/webhook/${webhooks[0]?.id || '<webhook-id>'} \\

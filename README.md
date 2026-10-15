@@ -392,8 +392,9 @@ Whether you're fixing a typo, adding a feature, or improving the docs — every 
 - [ ] Channel categories / folders
 - [ ] Voice messages
 - [ ] End-to-end encryption
-- [ ] PWA support (install as app)
-- [ ] Internationalization (i18n)
+- [x] Internationalization (i18n) — 已实现：中英双语切换，491 条词典，`npm run i18n:check` 覆盖率 100%
+- [x] Typing indicators — 已实现为「输入实时预览」：比传统 "typing..." 更强，直接展示对方正在输入的内容（按会话开关，不落库）
+- [ ] PWA support (install as app) — 部分就绪：viewport-fit=cover 与 iOS 安全区已适配，尚缺 manifest / service worker
 - [ ] Themes (dark mode, custom colors)
 - [ ] Guest access (external users)
 - [ ] SAML/SSO authentication

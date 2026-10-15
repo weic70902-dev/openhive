@@ -96,8 +96,24 @@ interface AppState {
   toggleSavedItem: (messageId: string) => void
   setSidebarOpen: (open: boolean) => void
   toggleSidebar: () => void
+  /**
+   * 输入实时预览:已开启的**会话 id 集合**。
+   *
+   * 语义是「预发布」——开启后,我打字的内容会实时广播给这个会话里的其他人,
+   * 对方**不需要**开启任何开关就能看到。所以这只是「我要不要广播」的个人选择,
+   * 与频道设置无关,不进数据库,按会话独立记录在本机。
+   */
+  livePreviewChannelIds: string[]
+  setLivePreviewEnabled: (channelId: string, enabled: boolean) => void
+  hydrateLivePreview: () => void
   signOut: () => void
 }
+
+/** 输入实时预览开关在 localStorage 里的键(值是会话 id 的 JSON 数组) */
+export const LIVE_PREVIEW_STORAGE_KEY = 'openhive:live-preview-channels'
+
+/** 早期版本用的是全局开关(单个 '1' / '0'),已废弃 —— 读取时顺手清掉 */
+const LEGACY_LIVE_PREVIEW_KEY = 'openhive:live-preview'
 
 export const useAppStore = create<AppState>((set) => ({
   user: null,
@@ -123,6 +139,7 @@ export const useAppStore = create<AppState>((set) => ({
   channelActiveCalls: {},
   savedItemIds: new Set(),
   sidebarOpen: false,
+  livePreviewChannelIds: [],
 
   setUser: (user) => set({ user }),
   setWorkspace: (workspace) => set({ workspace }),
@@ -144,6 +161,11 @@ export const useAppStore = create<AppState>((set) => ({
       channels: state.channels.map((c) =>
         c.id === channelId ? { ...c, ...updates } : c
       ).sort((a, b) => a.name.localeCompare(b.name)),
+      // 私聊没有「频道设置」对话框,阅后即焚这类开关直接改在会话头部,
+      // 所以这里必须同时覆盖 dmChannels —— 否则私聊里改了本地不生效。
+      dmChannels: state.dmChannels.map((c) =>
+        c.id === channelId ? { ...c, ...updates } : c
+      ),
     })),
   addDmChannel: (channel) =>
     set((state) => ({
@@ -264,6 +286,39 @@ export const useAppStore = create<AppState>((set) => ({
   setSavedItemIds: (savedItemIds) => set({ savedItemIds }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   toggleSidebar: () => set(state => ({ sidebarOpen: !state.sidebarOpen })),
+  setLivePreviewEnabled: (channelId, enabled) =>
+    set((state) => {
+      const next = enabled
+        ? Array.from(new Set([...state.livePreviewChannelIds, channelId]))
+        : state.livePreviewChannelIds.filter((id) => id !== channelId)
+
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(LIVE_PREVIEW_STORAGE_KEY, JSON.stringify(next))
+        } catch {
+          // 隐私模式下 localStorage 可能不可写 —— 仅本次会话生效即可
+        }
+      }
+
+      return { livePreviewChannelIds: next }
+    }),
+  // 客户端挂载后调用。默认值是空数组,所以服务端渲染与首次渲染都一致,不会 hydration 不匹配。
+  hydrateLivePreview: () => {
+    if (typeof window === 'undefined') return
+    try {
+      const raw = window.localStorage.getItem(LIVE_PREVIEW_STORAGE_KEY)
+      const parsed: unknown = raw ? JSON.parse(raw) : []
+      // 存进去的一定是字符串数组;外部改坏了就当空处理,不要让脏数据进 state
+      const ids = Array.isArray(parsed)
+        ? parsed.filter((v): v is string => typeof v === 'string' && v.length > 0)
+        : []
+      set({ livePreviewChannelIds: ids })
+      // 旧版的全局开关已经没人读了,顺手删掉,免得留在用户的 localStorage 里
+      window.localStorage.removeItem(LEGACY_LIVE_PREVIEW_KEY)
+    } catch {
+      // 读不到就保持默认(全关)
+    }
+  },
   toggleSavedItem: (messageId) => set(state => {
     const newSet = new Set(state.savedItemIds)
     if (newSet.has(messageId)) {
@@ -298,5 +353,6 @@ export const useAppStore = create<AppState>((set) => ({
       channelActiveCalls: {},
       savedItemIds: new Set(),
       sidebarOpen: false,
+      // 注意:不清空 livePreviewChannelIds —— 它是本机偏好,退出登录后应保留
     }),
 }))

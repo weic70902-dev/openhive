@@ -39,6 +39,18 @@ export interface Channel {
   is_archived: boolean
   created_by: string | null
   created_at: string
+  /**
+   * 阅后即焚时长(秒)。NULL = 关闭。
+   * 计时不在发送时开始,而是等**对方阅读**后由 mark_messages_seen() 写入 expires_at。
+   * 频道级共享设置:**任一方开启即对整个会话生效,不需要双方都开** ——
+   * 触发与校验全在数据库侧,与对方客户端开着什么无关。
+   */
+  disappear_seconds: number | null
+  /**
+   * 计时生效起点。每次改动 disappear_seconds 都会重置为当前时刻,
+   * 保证只有「开启之后发出的」消息才计入 —— 否则一开开关会烧掉全部历史消息。
+   */
+  disappear_since: string | null
 }
 
 export interface ChannelMember {
@@ -47,6 +59,12 @@ export interface ChannelMember {
   role: string
   notification_pref: string
   joined_at: string
+  /**
+   * 「我」在这个会话里的视图截止点。NULL = 从未清空过。
+   * 早于该时刻的消息只对我不可见 —— 对方的消息完整保留(清空不是删除)。
+   * 由 clear_channel_for_me() 写入。
+   */
+  cleared_at: string | null
 }
 
 export interface Message {
@@ -57,7 +75,13 @@ export interface Message {
   parent_id: string | null
   thread_reply_count: number
   is_edited: boolean
+  /** 已撤回。撤回时会同时清空 content,避免内容残留。 */
   is_deleted: boolean
+  /**
+   * 阅后即焚的销毁时刻。NULL = 不销毁(普通消息,或阅后即焚会话里对方尚未阅读)。
+   * 由 mark_messages_seen() 在对方阅读后写入,到点由 purge_expired_messages() 硬删除。
+   */
+  expires_at: string | null
   metadata: Record<string, unknown> | null
   created_at: string
   updated_at: string

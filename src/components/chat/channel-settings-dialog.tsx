@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useT } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -64,6 +65,8 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
     loadMembers()
     loadWorkspaceMembers()
   }, [open, channel.id])
+
+  const t = useT()
 
   async function loadMembers() {
     const client = getSupabaseClient()
@@ -142,7 +145,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
       updateChannel(channel.id, { name: formatted })
       setIsRenaming(false)
     } catch (err) {
-      setRenameError(err instanceof Error ? err.message : 'Failed to rename')
+      setRenameError(err instanceof Error ? err.message : t('Failed to rename'))
     }
     setRenaming(false)
   }
@@ -327,12 +330,13 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" style={{ color: '#F59E0B' }} />
-              Transfer ownership
+              {t('Transfer ownership')}
             </DialogTitle>
           </DialogHeader>
 
           <p className="text-[13px]" style={{ color: '#4A4860' }}>
-            You are the owner of <strong>#{channel.name}</strong>. Before leaving, please select a new owner for this channel.
+            {t('You are the owner of')} <strong>#{channel.name}</strong>
+            {t('. Before leaving, please select a new owner for this channel.')}
           </p>
 
           <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -378,7 +382,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setShowTransfer(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button
               onClick={handleTransferAndLeave}
@@ -386,7 +390,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
               style={{ background: '#7C5CFC', color: '#fff' }}
             >
               {transferring ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              Transfer & Leave
+              {t('Transfer & Leave')}
             </Button>
           </div>
         </DialogContent>
@@ -402,17 +406,18 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#E55B5B]">
               <Trash2 className="h-5 w-5" />
-              Delete channel
+              {t('Delete channel')}
             </DialogTitle>
           </DialogHeader>
 
           <p className="text-[13px]" style={{ color: '#4A4860' }}>
-            Are you sure you want to delete <strong>#{channel.name}</strong>? This will archive the channel and remove all members. This action cannot be undone.
+            {t('Are you sure you want to delete')} <strong>#{channel.name}</strong>
+            {t('? This will archive the channel and remove all members. This action cannot be undone.')}
           </p>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button
               onClick={handleDeleteChannel}
@@ -420,7 +425,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
               className="bg-[#E55B5B] hover:bg-[#D04444] text-white"
             >
               {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
-              Delete Channel
+              {t('Delete Channel')}
             </Button>
           </div>
         </DialogContent>
@@ -444,7 +449,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className="h-8 text-[16px] font-bold"
-                  placeholder="Channel name"
+                  placeholder={t('Channel name')}
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleRename()
@@ -465,7 +470,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
                   <button
                     onClick={() => { setNewName(channel.name); setIsRenaming(true) }}
                     className="h-6 w-6 rounded flex items-center justify-center hover:bg-[#F5F2FF] transition-colors"
-                    title="Rename channel"
+                    title={t('Rename channel')}
                   >
                     <Pencil className="h-3 w-3" style={{ color: '#8E8EA0' }} />
                   </button>
@@ -497,12 +502,12 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
                 {isMuted ? (
                   <>
                     <Bell className="h-4 w-4 mr-1" />
-                    Unmute Channel
+                    {t('Unmute Channel')}
                   </>
                 ) : (
                   <>
                     <BellOff className="h-4 w-4 mr-1" />
-                    Mute Channel
+                    {t('Mute Channel')}
                   </>
                 )}
               </Button>
@@ -519,7 +524,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
                 style={{ background: '#7C5CFC', color: '#fff' }}
               >
                 {joining ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <UserPlus className="h-4 w-4 mr-1" />}
-                Join Channel
+                {t('Join Channel')}
               </Button>
             )}
             {isMember && channel.name !== 'general' && (
@@ -530,7 +535,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
                 className="flex-1 text-[#E55B5B] hover:text-[#E55B5B] hover:bg-red-50"
               >
                 {leaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <LogOut className="h-4 w-4 mr-1" />}
-                Leave Channel
+                {t('Leave Channel')}
               </Button>
             )}
           </div>
@@ -539,7 +544,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: '#8E8EA0' }}>
-                Members ({members.length})
+                {t('Members ({count})', { count: members.length })}
               </Label>
             </div>
 
@@ -574,7 +579,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
                           {m.profile.display_name}
                         </span>
                         {m.profile.id === user?.id && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: '#F5F2FF', color: '#8E8EA0' }}>you</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: '#F5F2FF', color: '#8E8EA0' }}>{t('you')}</span>
                         )}
                         {m.role === 'admin' && (
                           <Crown className="h-3 w-3" style={{ color: '#F59E0B' }} />
@@ -587,7 +592,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
                       <button
                         onClick={() => handleRemoveMember(m.profile.id)}
                         className="h-6 w-6 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
-                        title="Remove from channel"
+                        title={t('Remove from channel')}
                       >
                         <X className="h-3 w-3" style={{ color: '#E55B5B' }} />
                       </button>
@@ -601,9 +606,9 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
           {/* Add members (if admin/creator) */}
           {isMember && (isAdmin || isCreator) && (
             <div className="space-y-2 pt-2" style={{ borderTop: '1px solid #E5E1EE' }}>
-              <Label className="text-[13px]">Add members</Label>
+              <Label className="text-[13px]">{t('Add members')}</Label>
               <Input
-                placeholder="Search workspace members..."
+                placeholder={t('Search workspace members...')}
                 value={memberSearch}
                 onChange={(e) => setMemberSearch(e.target.value)}
               />
@@ -644,7 +649,7 @@ export function ChannelSettingsDialog({ open, onOpenChange, channel }: ChannelSe
                 className="w-full text-[#E55B5B] hover:text-[#E55B5B] hover:bg-red-50"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
-                Delete Channel
+                {t('Delete Channel')}
               </Button>
             </div>
           )}

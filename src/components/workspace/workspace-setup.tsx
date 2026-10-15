@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, Loader2 } from 'lucide-react'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useT } from '@/lib/i18n'
 import type { Workspace, Channel } from '@/types/database'
 
 interface WorkspaceSetupProps {
@@ -17,6 +18,7 @@ export function WorkspaceSetup({ onCreated }: WorkspaceSetupProps) {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const t = useT()
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -28,7 +30,7 @@ export function WorkspaceSetup({ onCreated }: WorkspaceSetupProps) {
 
     try {
       const { data: { session } } = await client.auth.getSession()
-      if (!session) throw new Error('Not authenticated')
+      if (!session) throw new Error(t('Not authenticated'))
 
       const slug = name
         .toLowerCase()
@@ -126,7 +128,16 @@ export function WorkspaceSetup({ onCreated }: WorkspaceSetupProps) {
 
       onCreated(workspace as Workspace)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create workspace')
+      // Surface the real message: Supabase PostgrestError and plain error-like
+      // objects don't always pass `instanceof Error` after bundling.
+      const msg =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : t('Failed to create workspace')
+      console.error('[workspace-setup] create failed:', err)
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -137,16 +148,16 @@ export function WorkspaceSetup({ onCreated }: WorkspaceSetupProps) {
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
           <Building2 className="mx-auto h-12 w-12 text-primary mb-2" />
-          <CardTitle>Create your workspace</CardTitle>
-          <CardDescription>This is where your team will communicate.</CardDescription>
+          <CardTitle>{t('Create your workspace')}</CardTitle>
+          <CardDescription>{t('This is where your team will communicate.')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="workspace-name">Workspace Name</Label>
+              <Label htmlFor="workspace-name">{t('Workspace Name')}</Label>
               <Input
                 id="workspace-name"
-                placeholder="My Team"
+                placeholder={t('My Team')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -160,7 +171,7 @@ export function WorkspaceSetup({ onCreated }: WorkspaceSetupProps) {
             )}
 
             <Button type="submit" className="w-full" disabled={loading || !name.trim()}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Workspace'}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Create Workspace')}
             </Button>
           </form>
         </CardContent>

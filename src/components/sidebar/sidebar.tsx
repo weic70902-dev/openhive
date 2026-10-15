@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store/app-store'
 import { getSupabaseClient } from '@/lib/supabase/client'
@@ -22,8 +22,13 @@ import {
   Compass,
   Phone,
   Bookmark,
+  User,
+  Pencil,
+  Smile,
+  Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT, useI18n } from '@/lib/i18n'
 import { CreateChannelDialog } from './create-channel-dialog'
 import { DmDialog } from './dm-dialog'
 import { BrowseChannelsDialog } from './browse-channels-dialog'
@@ -31,6 +36,7 @@ import { InviteDialog } from '@/components/workspace/invite-dialog'
 import { WorkspaceSettingsDialog } from '@/components/workspace/workspace-settings-dialog'
 import { SearchDialog } from '@/components/search/search-dialog'
 import { ProfileEditDialog } from '@/components/profile/profile-edit-dialog'
+import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { SavedItemsPanel } from '@/components/bookmarks/saved-items-panel'
 import type { Profile, Channel, ActiveCall } from '@/types/database'
 
@@ -44,7 +50,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     user, workspace, channels, dmChannels, currentChannelId,
     setCurrentChannelId, setDmChannels, toggleActivity, unreadActivityCount,
     hiddenDmIds, hideDm, unreadCounts, mutedChannelIds, muteChannel, unmuteChannel,
-    channelActiveCalls, setChannelActiveCall,
+    channelActiveCalls, setChannelActiveCall, openProfile,
+    hydrateLivePreview,
   } = useAppStore()
   const [channelsOpen, setChannelsOpen] = useState(true)
   const [dmsOpen, setDmsOpen] = useState(true)
@@ -56,6 +63,29 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const [browseOpen, setBrowseOpen] = useState(false)
   const [workspaceSettingsOpen, setWorkspaceSettingsOpen] = useState(false)
   const [savedItemsOpen, setSavedItemsOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+  const t = useT()
+  const { locale, setLocale } = useI18n()
+
+  // 点击菜单外部关闭用户菜单
+  useEffect(() => {
+    if (!userMenuOpen) return
+    function handleClick(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [userMenuOpen])
+
+  // 输入实时预览是「本机偏好」,存在 localStorage 里。
+  // 挂载后再同步:store 默认值是 false,服务端渲染和首次客户端渲染因此保持一致,
+  // 不会出现 hydration 不匹配。
+  useEffect(() => {
+    hydrateLivePreview()
+  }, [hydrateLivePreview])
 
   // Load DM channels + subscribe to new DMs + track unread in real-time
   useEffect(() => {
@@ -359,7 +389,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             <div className="h-7 w-7 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{ background: '#7C5CFC' }}>
               {(workspace?.name || 'O')[0]?.toUpperCase()}
             </div>
-            <span className="font-[800] text-[16px] truncate" style={{ color: '#2D2B3D' }}>{workspace?.name || 'OpenHive'}</span>
+            <span className="font-[800] text-[16px] truncate" style={{ color: '#2D2B3D' }}>{workspace?.name || t('OpenHive')}</span>
           </button>
           <button
             onClick={() => setDmDialogOpen(true)}
@@ -377,7 +407,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             style={{ background: '#ffffff', color: '#8E8EA0', border: '1px solid #E5E1EE' }}
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="flex-1 text-left">Search</span>
+            <span className="flex-1 text-left">{t('Search')}</span>
             <kbd className="text-[10px] px-1.5 py-0.5 rounded-md font-mono" style={{ background: '#F5F2FF', color: '#8E8EA0' }}>⌘K</kbd>
           </button>
         </div>
@@ -390,7 +420,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             style={{ background: '#ffffff', color: '#4A4860', border: '1px solid #E5E1EE' }}
           >
             <Bell className="h-3.5 w-3.5" style={{ color: '#7C5CFC' }} />
-            <span className="flex-1 text-left font-medium">Activity</span>
+            <span className="flex-1 text-left font-medium">{t('Activity')}</span>
             {unreadActivityCount > 0 && (
               <span
                 className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white min-w-[18px] text-center"
@@ -410,7 +440,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             style={{ background: '#ffffff', color: '#4A4860', border: '1px solid #E5E1EE' }}
           >
             <Bookmark className="h-3.5 w-3.5" style={{ color: '#7C5CFC' }} />
-            <span className="flex-1 text-left font-medium">Saved Items</span>
+            <span className="flex-1 text-left font-medium">{t('Saved Items')}</span>
           </button>
         </div>
 
@@ -429,7 +459,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 ) : (
                   <ChevronRight className="h-3 w-3" />
                 )}
-                Channels
+                {t('Channels')}
               </button>
               <button
                 className="h-6 w-6 rounded-md flex items-center justify-center transition-all hover:bg-[#E0D6FF]"
@@ -493,7 +523,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                             isMuted ? unmuteChannel(channel.id) : muteChannel(channel.id)
                           }}
                           className="absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#DDD6F3]"
-                          title={isMuted ? 'Unmute channel' : 'Mute channel'}
+                          title={isMuted ? t('Unmute channel') : t('Mute channel')}
                           style={{ color: '#8E8EA0' }}
                         >
                           {isMuted ? <Bell className="h-3 w-3" /> : <BellOff className="h-3 w-3" />}
@@ -510,7 +540,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   style={{ color: '#8E8EA0' }}
                 >
                   <Compass className="h-4 w-4 shrink-0" />
-                  <span>Browse channels</span>
+                  <span>{t('Browse channels')}</span>
                 </button>
               </div>
             )}
@@ -527,7 +557,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 ) : (
                   <ChevronRight className="h-3 w-3" />
                 )}
-                Direct Messages
+                {t('Direct Messages')}
               </button>
               <button
                 className="h-6 w-6 rounded-md flex items-center justify-center transition-all hover:bg-[#E0D6FF]"
@@ -544,8 +574,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   .map((dm) => {
                     const isGroupDm = dm.name.startsWith('gdm-')
                     const otherName = isGroupDm
-                      ? (dm.memberProfiles || []).map(m => m.display_name).join(', ') || 'Group DM'
-                      : dm.otherUser?.display_name || 'Unknown'
+                      ? (dm.memberProfiles || []).map(m => m.display_name).join(', ') || t('Group DM')
+                      : dm.otherUser?.display_name || t('Unknown')
                     const initial = isGroupDm
                       ? (dm.memberProfiles?.[0]?.display_name?.[0]?.toUpperCase() || 'G')
                       : (dm.otherUser?.display_name?.[0]?.toUpperCase() || '?')
@@ -650,7 +680,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                             hideDm(dm.id)
                           }}
                           className="absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#DDD6F3]"
-                          title="Close conversation"
+                          title={t('Close conversation')}
                           style={{ color: '#8E8EA0' }}
                         >
                           <X className="h-3 w-3" />
@@ -666,7 +696,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                     style={{ color: '#8E8EA0' }}
                   >
                     <Plus className="h-4 w-4 shrink-0" />
-                    <span>Start a conversation</span>
+                    <span>{t('Start a conversation')}</span>
                   </button>
                 )}
               </div>
@@ -679,16 +709,107 @@ export function Sidebar({ onNavigate }: SidebarProps) {
               style={{ color: '#8E8EA0' }}
             >
               <UserPlus className="h-4 w-4 shrink-0" />
-              <span>Invite people</span>
+              <span>{t('Invite people')}</span>
             </button>
           </div>
         </ScrollArea>
 
         {/* User footer */}
-        <div className="px-3 py-3" style={{ borderTop: '1px solid #DDD6F3' }}>
+        <div ref={userMenuRef} className="px-3 py-3 relative" style={{ borderTop: '1px solid #DDD6F3' }}>
+          {/* 用户菜单 —— 点击头像展开 */}
+          {userMenuOpen && (
+            <div className="absolute bottom-full left-3 right-3 mb-2 z-50 bg-white border border-[#E5E1EE] rounded-2xl shadow-lg overflow-hidden">
+              {/* 头部:头像 + 名字 + 邮箱 */}
+              <div className="px-3 py-3 flex items-center gap-2.5" style={{ borderBottom: '1px solid #F0EBFF' }}>
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt={user.display_name} className="h-9 w-9 rounded-xl object-cover shrink-0" />
+                ) : (
+                  <div className="h-9 w-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ background: '#7C5CFC' }}>
+                    {user?.display_name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold truncate" style={{ color: '#2D2B3D' }}>{user?.display_name}</p>
+                  {user?.email && (
+                    <p className="text-[11px] truncate" style={{ color: '#8E8EA0' }}>{user.email}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 资料相关 */}
+              <div className="py-1">
+                <button
+                  onClick={() => { if (user) openProfile(user.id); setUserMenuOpen(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors hover:bg-[#F5F2FF]"
+                  style={{ color: '#2D2B3D' }}
+                >
+                  <User className="h-4 w-4 shrink-0" style={{ color: '#8E8EA0' }} />
+                  {t('View Profile')}
+                </button>
+                <button
+                  onClick={() => { setProfileEditOpen(true); setUserMenuOpen(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors hover:bg-[#F5F2FF]"
+                  style={{ color: '#2D2B3D' }}
+                >
+                  <Pencil className="h-4 w-4 shrink-0" style={{ color: '#8E8EA0' }} />
+                  {t('Edit Profile')}
+                </button>
+                <button
+                  onClick={() => { setProfileEditOpen(true); setUserMenuOpen(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors hover:bg-[#F5F2FF]"
+                  style={{ color: '#2D2B3D' }}
+                >
+                  <Smile className="h-4 w-4 shrink-0" style={{ color: '#8E8EA0' }} />
+                  {t('Set status')}
+                </button>
+              </div>
+
+              {/* 语言 */}
+              <div className="py-1" style={{ borderTop: '1px solid #F0EBFF' }}>
+                <p className="px-3 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#8E8EA0' }}>
+                  {t('Language')}
+                </p>
+                <div className="px-2 pb-1 flex gap-1">
+                  <button
+                    onClick={() => setLocale('zh')}
+                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
+                      locale === 'zh' ? 'bg-[#EDE5FF]' : 'hover:bg-[#F5F2FF]'
+                    }`}
+                    style={{ color: locale === 'zh' ? '#7C5CFC' : '#8E8EA0' }}
+                  >
+                    {locale === 'zh' && <Check className="h-3.5 w-3.5" />}
+                    {t('Chinese')}
+                  </button>
+                  <button
+                    onClick={() => setLocale('en')}
+                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
+                      locale === 'en' ? 'bg-[#EDE5FF]' : 'hover:bg-[#F5F2FF]'
+                    }`}
+                    style={{ color: locale === 'en' ? '#7C5CFC' : '#8E8EA0' }}
+                  >
+                    {locale === 'en' && <Check className="h-3.5 w-3.5" />}
+                    {t('English')}
+                  </button>
+                </div>
+              </div>
+
+              {/* 退出 */}
+              <div className="py-1" style={{ borderTop: '1px solid #F0EBFF' }}>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors hover:bg-red-50"
+                  style={{ color: '#E55B5B' }}
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  {t('Sign out')}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <button
-              onClick={() => setProfileEditOpen(true)}
+              onClick={() => setUserMenuOpen((v) => !v)}
               className="flex items-center gap-2.5 min-w-0 hover:bg-[#E0D6FF] rounded-xl px-2 py-1.5 -mx-2 transition-all"
             >
               <div className="relative shrink-0">
@@ -714,13 +835,16 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 )}
               </div>
             </button>
-            <button
-              className="h-8 w-8 rounded-lg flex items-center justify-center transition-all hover:bg-[#E0D6FF]"
-              onClick={handleSignOut}
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" style={{ color: '#8E8EA0' }} />
-            </button>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <LanguageSwitcher variant="compact" />
+              <button
+                className="h-8 w-8 rounded-lg flex items-center justify-center transition-all hover:bg-[#E0D6FF]"
+                onClick={handleSignOut}
+                title={t('Sign out')}
+              >
+                <LogOut className="h-4 w-4" style={{ color: '#8E8EA0' }} />
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -1,19 +1,29 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, ArrowLeft } from 'lucide-react'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store/app-store'
 import { MessageBubble } from './message-bubble'
 import { MessageInput } from './message-input'
 import type { Message } from '@/types/database'
+import { useT } from '@/lib/i18n'
 
 export function ThreadPanel() {
-  const { threadParentMessage, closeThread, user } = useAppStore()
+  const { threadParentMessage, closeThread, user, channels, dmChannels } = useAppStore()
   const [replies, setReplies] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const repliesRef = useRef<Message[]>([])
+  const t = useT()
+
+  // 话题里也要显示阅后即焚标记,而话题面板本身不知道所属会话的设置,
+  // 所以按 channel_id 回查一次(频道和私聊各查一遍)。
+  const parentChannelId = threadParentMessage?.channel_id
+  const parentChannel =
+    channels.find((c) => c.id === parentChannelId) ||
+    dmChannels.find((c) => c.id === parentChannelId)
+  const disappearSeconds = parentChannel?.disappear_seconds ?? null
 
   useEffect(() => {
     repliesRef.current = replies
@@ -35,7 +45,6 @@ export function ThreadPanel() {
         .from('messages')
         .select('*, sender:profiles(*)')
         .eq('parent_id', threadParentMessage!.id)
-        .eq('is_deleted', false)
         .order('created_at', { ascending: true })
 
       if (data) {
@@ -91,28 +100,39 @@ export function ThreadPanel() {
     })
   }
 
+  // 移动端:整屏浮层(z-30,低于侧边栏抽屉的 z-50);桌面端:右侧固定宽度面板。
   return (
-    <div className="w-96 flex flex-col h-full" style={{ background: '#ffffff', borderLeft: '1px solid #E5E1EE' }}>
+    <div className="fixed inset-0 z-30 flex flex-col h-full bg-white md:static md:z-auto md:w-96 md:shrink-0 md:border-l md:border-[#E5E1EE] pt-[env(safe-area-inset-top)]">
       {/* Header */}
-      <div className="px-5 py-3 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid #E5E1EE' }}>
-        <h3 className="font-bold text-[17px]" style={{ color: '#2D2B3D' }}>Thread</h3>
-        <button className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-[#F5F2FF] transition-colors" onClick={closeThread}>
+      <div className="px-4 md:px-5 py-3 flex items-center gap-1.5 shrink-0 border-b border-[#E5E1EE]">
+        <button
+          className="md:hidden h-8 w-8 -ml-1.5 rounded-lg flex items-center justify-center hover:bg-[#F5F2FF] transition-colors"
+          onClick={closeThread}
+          aria-label={t('Back')}
+        >
+          <ArrowLeft className="h-5 w-5" style={{ color: '#2D2B3D' }} />
+        </button>
+        <h3 className="font-bold text-[17px] flex-1" style={{ color: '#2D2B3D' }}>{t('Thread')}</h3>
+        <button
+          className="hidden md:flex h-8 w-8 rounded-lg items-center justify-center hover:bg-[#F5F2FF] transition-colors"
+          onClick={closeThread}
+        >
           <X className="h-4 w-4" style={{ color: '#8E8EA0' }} />
         </button>
       </div>
 
       {/* Parent message */}
       <div className="px-4 pt-3 pb-2" style={{ borderBottom: '1px solid #E5E1EE' }}>
-        <MessageBubble message={threadParentMessage} showHeader isOwn={threadParentMessage.sender_id === user?.id} isThread />
+        <MessageBubble message={threadParentMessage} showHeader isOwn={threadParentMessage.sender_id === user?.id} isThread disappearSeconds={disappearSeconds} />
       </div>
 
       {/* Reply count */}
       <div className="px-5 py-2 text-xs font-medium" style={{ color: '#8E8EA0', borderBottom: '1px solid #E5E1EE' }}>
-        {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+        {replies.length} {t(replies.length === 1 ? 'reply' : 'replies')}
       </div>
 
       {/* Replies */}
-      <div className="flex-1 overflow-y-auto px-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4">
         <div className="py-2 space-y-1">
           {loading ? (
             <div className="flex items-center justify-center py-8">
@@ -134,6 +154,7 @@ export function ThreadPanel() {
                   showHeader={showHeader}
                   isOwn={reply.sender_id === user?.id}
                   isThread
+                  disappearSeconds={disappearSeconds}
                 />
               )
             })
@@ -143,7 +164,7 @@ export function ThreadPanel() {
       </div>
 
       {/* Reply input */}
-      <MessageInput channelId={threadParentMessage?.channel_id} channelName="thread" onSend={handleSendReply} placeholder="Reply..." />
+      <MessageInput channelId={threadParentMessage?.channel_id} channelName="thread" onSend={handleSendReply} placeholder={t('Reply...')} />
     </div>
   )
 }

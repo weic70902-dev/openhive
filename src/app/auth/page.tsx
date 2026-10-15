@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MessageSquare, Loader2, Mail, Users, ArrowLeft, KeyRound } from 'lucide-react'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { useT } from '@/lib/i18n'
 
 type Mode = 'signin' | 'signup'
 type View =
@@ -136,6 +137,8 @@ function AuthForm() {
       })
   }, [workspaceId])
 
+  const t = useT()
+
   async function autoJoinWorkspace(userId: string) {
     if (!workspaceId) return
     const client = getSupabaseClient()
@@ -183,11 +186,11 @@ function AuthForm() {
     if (!client) return
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('Passwords do not match'))
       return
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+      setError(t('Password must be at least 6 characters'))
       return
     }
 
@@ -215,7 +218,7 @@ function AuthForm() {
 
       router.push('/workspace')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to complete profile')
+      setError(err instanceof Error ? err.message : t('Failed to complete profile'))
     } finally {
       setLoading(false)
     }
@@ -237,7 +240,7 @@ function AuthForm() {
       if (error) throw error
       setView('reset-email-sent')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send reset email')
+      setError(err instanceof Error ? err.message : t('Failed to send reset email'))
     } finally {
       setLoading(false)
     }
@@ -250,11 +253,11 @@ function AuthForm() {
     if (!client) return
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('Passwords do not match'))
       return
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+      setError(t('Password must be at least 6 characters'))
       return
     }
 
@@ -266,7 +269,7 @@ function AuthForm() {
       if (error) throw error
       router.push('/workspace')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reset password')
+      setError(err instanceof Error ? err.message : t('Failed to reset password'))
     } finally {
       setLoading(false)
     }
@@ -295,7 +298,7 @@ function AuthForm() {
       })
 
       const result = await res.json()
-      if (!res.ok) throw new Error(result.error || 'Failed to complete invite')
+      if (!res.ok) throw new Error(result.error || t('Failed to complete invite'))
 
       // Now sign in with the password we just set
       const { error: signInError } = await client.auth.signInWithPassword({
@@ -306,7 +309,7 @@ function AuthForm() {
 
       router.push('/workspace')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join workspace')
+      setError(err instanceof Error ? err.message : t('Failed to join workspace'))
     } finally {
       setLoading(false)
     }
@@ -366,7 +369,7 @@ function AuthForm() {
 
       router.push('/workspace')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed')
+      setError(err instanceof Error ? err.message : t('Authentication failed'))
     } finally {
       setLoading(false)
       isManualSubmit.current = false
@@ -385,8 +388,8 @@ function AuthForm() {
     <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-md flex items-center gap-2">
       <Users className="h-5 w-5 text-primary shrink-0" />
       <p className="text-sm">
-        You&apos;ve been invited to join{' '}
-        <strong>{workspaceName || 'a workspace'}</strong>!
+        {t("You've been invited to join")}{' '}
+        <strong>{workspaceName || t('a workspace')}</strong>!
       </p>
     </div>
   )
@@ -407,16 +410,16 @@ function AuthForm() {
         <Card className="max-w-sm w-full">
           <CardHeader className="text-center">
             <Users className="mx-auto h-10 w-10 text-primary mb-2" />
-            <CardTitle className="text-2xl">Complete your profile</CardTitle>
+            <CardTitle className="text-2xl">{t('Complete your profile')}</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Set your name and password to join{' '}
-              <strong>{workspaceName || 'the workspace'}</strong>
+              {t('Set your name and password to join')}{' '}
+              <strong>{workspaceName || t('the workspace')}</strong>
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCompleteProfile} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email-display">Email</Label>
+                <Label htmlFor="email-display">{t('Email')}</Label>
                 <Input
                   id="email-display"
                   type="email"
@@ -427,10 +430,10 @@ function AuthForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Display Name</Label>
+                <Label htmlFor="name">{t('Display Name')}</Label>
                 <Input
                   id="name"
-                  placeholder="Your name"
+                  placeholder={t('Your name')}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   required
@@ -439,11 +442,11 @@ function AuthForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('Password')}</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Choose a password"
+                  placeholder={t('Choose a password')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -452,11 +455,11 @@ function AuthForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <Label htmlFor="confirm-password">{t('Confirm Password')}</Label>
                 <Input
                   id="confirm-password"
                   type="password"
-                  placeholder="Confirm your password"
+                  placeholder={t('Confirm your password')}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -467,7 +470,7 @@ function AuthForm() {
               {errorBanner}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Join Workspace'}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Join Workspace')}
               </Button>
             </form>
           </CardContent>
@@ -483,17 +486,17 @@ function AuthForm() {
         <Card className="max-w-sm w-full">
           <CardHeader className="text-center">
             <KeyRound className="mx-auto h-10 w-10 text-primary mb-2" />
-            <CardTitle className="text-2xl">Reset your password</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Enter your new password below.</p>
+            <CardTitle className="text-2xl">{t('Reset your password')}</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">{t('Enter your new password below.')}</p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
+                <Label htmlFor="new-password">{t('New Password')}</Label>
                 <Input
                   id="new-password"
                   type="password"
-                  placeholder="New password"
+                  placeholder={t('New password')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -503,11 +506,11 @@ function AuthForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirm-new-password">Confirm New Password</Label>
+                <Label htmlFor="confirm-new-password">{t('Confirm New Password')}</Label>
                 <Input
                   id="confirm-new-password"
                   type="password"
-                  placeholder="Confirm new password"
+                  placeholder={t('Confirm new password')}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -518,7 +521,7 @@ function AuthForm() {
               {errorBanner}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Set New Password'}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Set New Password')}
               </Button>
             </form>
           </CardContent>
@@ -534,19 +537,19 @@ function AuthForm() {
         <Card className="max-w-sm w-full">
           <CardHeader className="text-center">
             <Mail className="mx-auto h-10 w-10 text-primary mb-2" />
-            <CardTitle className="text-2xl">Forgot password?</CardTitle>
+            <CardTitle className="text-2xl">{t('Forgot password?')}</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Enter your email and we&apos;ll send you a reset link.
+              {t("Enter your email and we'll send you a reset link.")}
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleForgotPassword} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="reset-email">Email</Label>
+                <Label htmlFor="reset-email">{t('Email')}</Label>
                 <Input
                   id="reset-email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={t('you@example.com')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -557,7 +560,7 @@ function AuthForm() {
               {errorBanner}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Reset Link'}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Send Reset Link')}
               </Button>
 
               <Button
@@ -570,7 +573,7 @@ function AuthForm() {
                 }}
               >
                 <ArrowLeft className="h-3 w-3 mr-1" />
-                Back to Sign In
+                {t('Back to Sign In')}
               </Button>
             </form>
           </CardContent>
@@ -585,10 +588,10 @@ function AuthForm() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="max-w-md w-full space-y-6 text-center">
           <Mail className="mx-auto h-12 w-12 text-primary" />
-          <h2 className="text-2xl font-bold">Check your email</h2>
+          <h2 className="text-2xl font-bold">{t('Check your email')}</h2>
           <p className="text-muted-foreground">
-            We sent a password reset link to <strong>{email}</strong>.
-            Click the link in the email, then you&apos;ll be able to set a new password.
+            {t('We sent a password reset link to')} <strong>{email}</strong>
+            {t(". Click the link in the email, then you'll be able to set a new password.")}
           </p>
           <Button
             onClick={() => {
@@ -597,7 +600,7 @@ function AuthForm() {
               setError(null)
             }}
           >
-            Back to Sign In
+            {t('Back to Sign In')}
           </Button>
         </div>
       </div>
@@ -610,10 +613,10 @@ function AuthForm() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="max-w-md w-full space-y-6 text-center">
           <Mail className="mx-auto h-12 w-12 text-primary" />
-          <h2 className="text-2xl font-bold">Check your email</h2>
+          <h2 className="text-2xl font-bold">{t('Check your email')}</h2>
           <p className="text-muted-foreground">
-            We sent a confirmation link to <strong>{email}</strong>. Click the link to activate your
-            account, then come back and sign in.
+            {t('We sent a confirmation link to')} <strong>{email}</strong>
+            {t('. Click the link to activate your account, then come back and sign in.')}
           </p>
           <div className="space-y-3">
             <Button
@@ -623,11 +626,11 @@ function AuthForm() {
                 setError(null)
               }}
             >
-              I&apos;ve confirmed, Sign In
+              {t("I've confirmed, Sign In")}
             </Button>
             <div className="text-xs text-muted-foreground space-y-1">
-              <p>or</p>
-              <p>To skip email confirmation:</p>
+              <p>{t('or')}</p>
+              <p>{t('To skip email confirmation:')}</p>
               <p>Supabase Dashboard &rsaquo; Authentication &rsaquo; Providers &rsaquo; Email &rsaquo; Disable &quot;Confirm email&quot;</p>
             </div>
           </div>
@@ -643,15 +646,15 @@ function AuthForm() {
         <Card className="max-w-sm w-full">
           <CardHeader className="text-center">
             <Users className="mx-auto h-10 w-10 text-primary mb-2" />
-            <CardTitle className="text-2xl">Join {workspaceName || 'Workspace'}</CardTitle>
+            <CardTitle className="text-2xl">{t('Join')} {workspaceName || t('Workspace')}</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Set up your account to get started
+              {t('Set up your account to get started')}
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleInviteComplete} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="invite-email">Email</Label>
+                <Label htmlFor="invite-email">{t('Email')}</Label>
                 <Input
                   id="invite-email"
                   type="email"
@@ -662,10 +665,10 @@ function AuthForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="invite-name">Display Name</Label>
+                <Label htmlFor="invite-name">{t('Display Name')}</Label>
                 <Input
                   id="invite-name"
-                  placeholder="Your name"
+                  placeholder={t('Your name')}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   required
@@ -674,11 +677,11 @@ function AuthForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="invite-password">Password</Label>
+                <Label htmlFor="invite-password">{t('Password')}</Label>
                 <Input
                   id="invite-password"
                   type="password"
-                  placeholder="Choose a password"
+                  placeholder={t('Choose a password')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -689,7 +692,7 @@ function AuthForm() {
               {errorBanner}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Join Workspace'}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Join Workspace')}
               </Button>
 
               <Button
@@ -701,7 +704,7 @@ function AuthForm() {
                   setError(null)
                 }}
               >
-                Already have an account? Sign In
+                {t('Already have an account? Sign In')}
               </Button>
             </form>
           </CardContent>
@@ -724,10 +727,10 @@ function AuthForm() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
               <div className="space-y-2">
-                <Label htmlFor="name">Display Name</Label>
+                <Label htmlFor="name">{t('Display Name')}</Label>
                 <Input
                   id="name"
-                  placeholder="Your name"
+                  placeholder={t('Your name')}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                 />
@@ -735,11 +738,11 @@ function AuthForm() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('Email')}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t('you@example.com')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -748,7 +751,7 @@ function AuthForm() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('Password')}</Label>
                 {mode === 'signin' && (
                   <button
                     type="button"
@@ -758,14 +761,14 @@ function AuthForm() {
                       setError(null)
                     }}
                   >
-                    Forgot password?
+                    {t('Forgot password?')}
                   </button>
                 )}
               </div>
               <Input
                 id="password"
                 type="password"
-                placeholder="Password"
+                placeholder={t('Password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -779,9 +782,9 @@ function AuthForm() {
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : mode === 'signin' ? (
-                workspaceId ? 'Sign In & Join' : 'Sign In'
+                workspaceId ? t('Sign In & Join') : t('Sign In')
               ) : (
-                workspaceId ? 'Create Account & Join' : 'Create Account'
+                workspaceId ? t('Create Account & Join') : t('Create Account')
               )}
             </Button>
 
@@ -795,8 +798,8 @@ function AuthForm() {
               }}
             >
               {mode === 'signin'
-                ? "Don't have an account? Sign Up"
-                : 'Already have an account? Sign In'}
+                ? t("Don't have an account? Sign Up")
+                : t('Already have an account? Sign In')}
             </Button>
           </form>
         </CardContent>

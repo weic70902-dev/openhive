@@ -5,20 +5,30 @@ import { useEditor, EditorContent, Extension } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Mention from '@tiptap/extension-mention'
-import { SendHorizonal, Paperclip, Bold, Italic, Code, CodeSquare, ChevronUp, Clock } from 'lucide-react'
+import { SendHorizonal, Paperclip, Bold, Italic, Code, CodeSquare, ChevronUp, Clock, Smile } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FloatingPanel } from '@/components/ui/floating-panel'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store/app-store'
 import type { Profile, SlashCommand } from '@/types/database'
 import { SlashCommandPicker } from './slash-command-picker'
+import { EmojiPicker } from './emoji-picker'
 import { BUILTIN_COMMANDS, type BuiltinCommand } from '@/lib/slash-commands'
 import { ScheduleMessageDialog } from './schedule-message-dialog'
+import { useT } from '@/lib/i18n'
+import { sanitizeImageFile } from '@/lib/image'
+import { SIGNED_TTL_SECONDS, cacheSignedUrl } from '@/lib/attachment-url'
 
 interface MessageInputProps {
   channelId?: string
   channelName: string
   onSend: (content: string, attachments?: string[]) => Promise<void>
   placeholder?: string
+  /**
+   * 输入实时预览。传入时,每次输入变化都会回调当前文本(可能是空串 = 已清空);
+   * 不传 = 该功能关闭,输入框不做任何广播。
+   */
+  onDraftChange?: (content: string) => void
 }
 
 // Convert TipTap HTML to our storage format (simplified markdown-like)
@@ -63,11 +73,33 @@ function htmlToContent(html: string): string {
   return walk(div).replace(/\n+$/, '').trim()
 }
 
-export function MessageInput({ channelId, channelName, onSend, placeholder }: MessageInputProps) {
+/**
+ * 从剪贴板取出图片文件。
+ * 截图在剪贴板里表现为 kind === 'file' 的 image/png 项,
+ * 从文件管理器复制的图片文件同理。
+ * 只取图片,避免把 Excel/网页复制时夹带的临时文件也传上去。
+ */
+function extractClipboardImages(data: DataTransfer | null): File[] {
+  if (!data) return []
+  const out: File[] = []
+  for (const item of Array.from(data.items)) {
+    if (item.kind !== 'file') continue
+    const f = item.getAsFile()
+    if (f && f.type.startsWith('image/')) out.push(f)
+  }
+  return out
+}
+
+export function MessageInput({ channelId, channelName, onSend, placeholder, onDraftChange }: MessageInputProps) {
   const { workspace } = useAppStore()
   const [sending, setSending] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
-  const [attachments, setAttachments] = useState<{ name: string; url: string }[]>([])
+  // 附件分两个 URL:
+  //  · url        —— 公开直链,**写进消息正文的那一个**。数据库里存的是它,
+  //                 渲染时由 useSignedText 现换签名 URL(见 hooks/use-signed-text)。
+  //  · previewUrl —— 签名 URL,**只给发送前的预览 chip 用**。桶私有后公开直链
+  //                 直接 <img> 会 403,预览必须用签名版。
+  const [attachments, setAttachments] = useState<{ name: string; url: string; previewUrl?: string; isImage?: boolean }[]>([])
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [members, setMembers] = useState<Profile[]>([])
@@ -78,6 +110,21 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
   const showSlashPickerRef = useRef(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [showSendMenu, setShowSendMenu] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  // 表情按钮本身作为 portal 浮层的定位锚点(浮层挂在 body 上,不再受输入框 overflow 影响)
+  const emojiAnchorRef = useRef<HTMLButtonElement>(null)
+  const t = useT()
+
+  // 粘贴/拖拽发生在 TipTap 的 editorProps 里,而 editorProps 只在创建编辑器时捕获一次。
+  // 用 ref 持有最新的 uploadFiles,避免闭包停留在首次渲染的版本。
+  const uploadFilesRef = useRef<((files: FileList | File[]) => Promise<void>) | null>(null)
+
+  // onUpdate 同样只在创建编辑器时捕获一次,所以回调也必须走 ref,
+  // 否则开关切换后广播的还是旧闭包(可能指向已销毁的 channel)。
+  const onDraftChangeRef = useRef(onDraftChange)
+  useEffect(() => {
+    onDraftChangeRef.current = onDraftChange
+  }, [onDraftChange])
 
   // Keep ref in sync with state so TipTap suggestion callback always sees latest
   useEffect(() => {
@@ -152,7 +199,7 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
         listItem: false,
       }),
       Placeholder.configure({
-        placeholder: placeholder || `Message #${channelName}`,
+        placeholder: placeholder || t('Message #{name}', { name: channelName }),
       }),
       Mention.configure({
         HTMLAttributes: {
@@ -280,6 +327,25 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
     ],
     onUpdate: ({ editor }) => {
       const text = editor.getText()
+
+      // 输入实时预览(非 IME 组合态):把当前文本广播出去(不落库)。
+      //
+      // IME 组合态(中文等输入法)**不在这里推**,交给 editorProps 的
+      // compositionupdate / compositionend:
+      //  · 组合中 getText() 会读到空串或半截文本,而空串是「清空草稿」
+      //    控制信号,误发会把对方的活草稿抹掉(双方同时打字时尤为明显);
+      //  · 组合态下文档未必同步,读 DOM 才是用户眼前正在输入的内容 ——
+      //    中文必须「边打边实时预览」,不能等组合结束:那既不是实时,
+      //    也可能永远不来(组合最后一刻若没有新事务,onUpdate 不再触发,
+      //    中文就卡在输入框里、对方永远看不到)。
+      if (!editor.view.composing) {
+        // 空串也要发 —— 那是「我清空了输入框」的信号,对方据此撤掉草稿气泡。
+        // 注意:只有「内容真的变成空」才发空串。失焦、切页、停手不发任何信号 ——
+        // 草稿的保活由发送端心跳负责(见 lib/live-preview.ts),预览会一直挂着,
+        // 直到关掉当前对话页面或关掉预览开关。
+        onDraftChangeRef.current?.(text)
+      }
+
       if (text.startsWith('/') && !text.includes(' ')) {
         setSlashQuery(text)
         setShowSlashPicker(true)
@@ -296,6 +362,24 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
     editorProps: {
       attributes: {
         class: 'tiptap-editor',
+      },
+      // 粘贴图片 / 截图 —— 直接读剪贴板里的图片文件并上传。
+      // 纯文本和表情不拦截,交给浏览器默认行为插入到光标处。
+      handlePaste: (_view, event) => {
+        const files = extractClipboardImages(event.clipboardData)
+        if (files.length === 0) return false
+        event.preventDefault()
+        uploadFilesRef.current?.(files)
+        return true
+      },
+      // 拖拽落在编辑器内部时 ProseMirror 会先接管,这里补一道,
+      // 保证与容器上的 onDrop 行为一致。
+      handleDrop: (_view, event) => {
+        const dt = (event as DragEvent).dataTransfer
+        if (!dt || dt.files.length === 0) return false
+        event.preventDefault()
+        uploadFilesRef.current?.(dt.files)
+        return true
       },
       handleKeyDown: (_view, event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -314,6 +398,25 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
         }
         return false
       },
+      // 输入法(IME)组合事件 —— 中文实时预览的关键路径。
+      handleDOMEvents: {
+        // 组合期逐拍推送编辑区当前文本:拼音/候选每变一次就广播一次,
+        // 对方「边打边看」,不等组合结束。
+        // 组合态下文档可能还没同步,读 DOM 才拿得到用户眼前正在输入的字。
+        // 空串不发 —— 那是「清空草稿」控制信号,组合过渡的瞬时读空会误伤对方。
+        compositionupdate: (view) => {
+          const imeText = view.dom.textContent ?? ''
+          if (imeText !== '') onDraftChangeRef.current?.(imeText)
+          return false
+        },
+        // 组合结束(提交 / 取消 / 删空):补发一次最终文本。
+        // 空串也发 —— 此刻「空」就是真实状态,该撤草稿。
+        // 之后 onUpdate 还会带文档同步后的权威文本到达,内容一致,无副作用。
+        compositionend: (view) => {
+          onDraftChangeRef.current?.(view.dom.textContent ?? '')
+          return false
+        },
+      },
     },
     content: '',
     immediatelyRender: false,
@@ -325,7 +428,7 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
       editor.extensionManager.extensions
         .filter((ext) => ext.name === 'placeholder')
         .forEach((ext) => {
-          (ext.options as { placeholder: string }).placeholder = placeholder || `Message #${channelName}`
+          (ext.options as { placeholder: string }).placeholder = placeholder || t('Message #{name}', { name: channelName })
           editor.view.dispatch(editor.state.tr)
         })
     }
@@ -341,7 +444,11 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
     // Build final content with attachments
     let finalContent = content
     if (attachments.length > 0) {
-      const fileLines = attachments.map((a) => `📎 [${a.name}](${a.url})`).join('\n')
+      // 图片走 markdown 图片语法(消息气泡会渲染成内联预览),
+      // 其余文件仍走附件链接语法
+      const fileLines = attachments
+        .map((a) => (a.isImage ? `![${a.name}](${a.url})` : `📎 [${a.name}](${a.url})`))
+        .join('\n')
       finalContent = finalContent ? `${finalContent}\n${fileLines}` : fileLines
     }
 
@@ -350,6 +457,8 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
       await onSend(finalContent)
       editor.commands.clearContent()
       setAttachments([])
+      // 发送成功 = 草稿已变成正式消息,立刻撤掉对方那边的草稿气泡
+      onDraftChangeRef.current?.('')
     } finally {
       setSending(false)
       editor.commands.focus()
@@ -385,14 +494,25 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
   // File upload handler — uses server-side API route to bypass RLS
   async function uploadFiles(files: FileList | File[]) {
     setUploading(true)
-    const newAttachments: { name: string; url: string }[] = []
+    const newAttachments: { name: string; url: string; previewUrl?: string; isImage?: boolean }[] = []
 
     // Get auth session for upload authentication
     const client = getSupabaseClient()
     const session = client ? (await client.auth.getSession()).data.session : null
 
-    for (const file of Array.from(files)) {
+    for (const rawFile of Array.from(files)) {
       try {
+        // 图片先经 canvas 重编码:剥离 EXIF(含 GPS 定位)并限制最大边长。
+        // 非图片、GIF、SVG 或解码失败时原样返回,不会中断上传。
+        const { file, sanitized, originalSize } = await sanitizeImageFile(rawFile)
+        if (sanitized) {
+          console.info(
+            `[upload] 已剥离图片元数据: ${rawFile.name} ` +
+              `${(originalSize / 1024).toFixed(0)}KB → ${(file.size / 1024).toFixed(0)}KB`
+          )
+        }
+        const isImage = file.type.startsWith('image/')
+
         const ext = file.name.split('.').pop()
         const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
         const path = `uploads/${safeName}`
@@ -414,16 +534,40 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
           throw new Error(data.error || 'Upload failed')
         }
 
-        newAttachments.push({ name: file.name, url: data.publicUrl })
+        // 附件桶已私有化:上传返回的仍是公开直链(数据库里也存它),
+        // 但预览这里要能立刻看到图 —— 换成签名 URL。
+        // 签失败(网络/桶还是 public)就沿用原 URL,不会挡住发送。
+        let previewUrl = data.publicUrl as string
+        try {
+          const client = getSupabaseClient()
+          if (client && data.path) {
+            const { data: signed } = await client.storage
+              .from('attachments')
+              .createSignedUrl(data.path, SIGNED_TTL_SECONDS)
+            if (signed?.signedUrl) {
+              previewUrl = signed.signedUrl
+              cacheSignedUrl({ bucket: 'attachments', path: data.path }, signed.signedUrl, SIGNED_TTL_SECONDS)
+            }
+          }
+        } catch {
+          // 忽略:回落原 URL
+        }
+
+        newAttachments.push({ name: file.name, url: data.publicUrl, previewUrl, isImage })
       } catch (err) {
         console.error('Failed to upload file:', err)
-        alert(`File upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        alert(t('File upload failed: {error}', { error: err instanceof Error ? err.message : t('Unknown error') }))
       }
     }
 
     setAttachments((prev) => [...prev, ...newAttachments])
     setUploading(false)
   }
+
+  // 每次渲染后把最新的 uploadFiles 写进 ref,供 editorProps 里的粘贴/拖拽回调使用
+  useEffect(() => {
+    uploadFilesRef.current = uploadFiles
+  })
 
   // Drag & drop
   const dragCounterRef = useRef(0)
@@ -464,7 +608,10 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
   const isEmpty = !editor?.getText().trim() && attachments.length === 0
 
   return (
-    <div className="px-5 pb-4 pt-2">
+    // 底部内边距叠加 iOS 安全区:独立安装(PWA/主屏)时,小黑条会盖住输入框,
+    // 用 env(safe-area-inset-bottom) 把输入框顶出危险区;桌面浏览器该值为 0,无副作用。
+    // (配合 app/layout.tsx 的 viewportFit: 'cover' 才会生效)
+    <div className="px-5 pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <div
         className={`rounded-2xl transition-all ${
           isDragging ? 'border-2 border-[#7C5CFC] bg-[#EDE5FF]' : 'border border-[#E5E1EE] shadow-sm'
@@ -478,7 +625,7 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
         {/* Drag overlay */}
         {isDragging && (
           <div className="px-4 py-6 text-center text-sm font-medium" style={{ color: '#7C5CFC' }}>
-            Drop files here to upload
+            {t('Drop files here to upload')}
           </div>
         )}
 
@@ -498,7 +645,16 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
                     className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs"
                     style={{ background: '#F5F2FF', color: '#4A4860' }}
                   >
-                    <Paperclip className="h-3 w-3" />
+                    {a.isImage ? (
+                      <img
+                        src={a.previewUrl ?? a.url}
+                        alt={a.name}
+                        className="h-8 w-8 rounded-md object-cover shrink-0"
+                        style={{ border: '1px solid #E5E1EE' }}
+                      />
+                    ) : (
+                      <Paperclip className="h-3 w-3" />
+                    )}
                     <span className="truncate max-w-[150px]">{a.name}</span>
                     <button
                       onClick={() =>
@@ -524,7 +680,7 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
                       : 'text-[#8E8EA0] hover:text-[#2D2B3D] hover:bg-[#F5F2FF]'
                   }`}
                   onClick={() => editor?.chain().focus().toggleBold().run()}
-                  title="Bold (Ctrl+B)"
+                  title={t('Bold (Ctrl+B)')}
                 >
                   <Bold className="h-4 w-4" />
                 </button>
@@ -535,7 +691,7 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
                       : 'text-[#8E8EA0] hover:text-[#2D2B3D] hover:bg-[#F5F2FF]'
                   }`}
                   onClick={() => editor?.chain().focus().toggleItalic().run()}
-                  title="Italic (Ctrl+I)"
+                  title={t('Italic (Ctrl+I)')}
                 >
                   <Italic className="h-4 w-4" />
                 </button>
@@ -546,7 +702,7 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
                       : 'text-[#8E8EA0] hover:text-[#2D2B3D] hover:bg-[#F5F2FF]'
                   }`}
                   onClick={() => editor?.chain().focus().toggleCode().run()}
-                  title="Inline code"
+                  title={t('Inline code')}
                 >
                   <Code className="h-4 w-4" />
                 </button>
@@ -557,15 +713,28 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
                       : 'text-[#8E8EA0] hover:text-[#2D2B3D] hover:bg-[#F5F2FF]'
                   }`}
                   onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
-                  title="Code block"
+                  title={t('Code block')}
                 >
                   <CodeSquare className="h-4 w-4" />
                 </button>
                 <div className="w-px h-4 mx-1" style={{ background: '#E5E1EE' }} />
+                {/* 表情:选中后插入光标处,面板保持打开以便连续插入 */}
+                <button
+                  ref={emojiAnchorRef}
+                  className={`h-7 w-7 rounded-lg flex items-center justify-center transition-all ${
+                    showEmojiPicker
+                      ? 'text-[#7C5CFC] bg-[#EDE5FF]'
+                      : 'text-[#8E8EA0] hover:text-[#2D2B3D] hover:bg-[#F5F2FF]'
+                  }`}
+                  onClick={() => setShowEmojiPicker((v) => !v)}
+                  title={t('Insert emoji')}
+                >
+                  <Smile className="h-4 w-4" />
+                </button>
                 <button
                   className="h-7 w-7 rounded-lg flex items-center justify-center transition-all text-[#8E8EA0] hover:text-[#2D2B3D] hover:bg-[#F5F2FF]"
                   onClick={() => fileInputRef.current?.click()}
-                  title="Attach file"
+                  title={t('Attach file')}
                   disabled={uploading}
                 >
                   <Paperclip className="h-4 w-4" />
@@ -605,7 +774,7 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
                         className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#F5F2FF] text-left text-[#2D2B3D]"
                       >
                         <Clock className="h-3.5 w-3.5" style={{ color: '#7C5CFC' }} />
-                        Schedule message
+                        {t('Schedule message')}
                       </button>
                     </div>
                   )}
@@ -635,6 +804,25 @@ export function MessageInput({ channelId, channelName, onSend, placeholder }: Me
           setAttachments([])
         }}
       />
+
+      {/* 表情面板
+          portal 到 body 并用 fixed 定位:输入框本身处在带 overflow 的容器里,
+          面板留在原地会在窄屏上被裁掉。side="top" 让它默认向上展开。 */}
+      <FloatingPanel
+        anchorRef={emojiAnchorRef}
+        open={showEmojiPicker}
+        onClose={() => setShowEmojiPicker(false)}
+        align="start"
+        gap={8}
+        side="top"
+      >
+        <EmojiPicker
+          stayOpen
+          searchable
+          onSelect={(emoji) => editor?.chain().focus().insertContent(emoji).run()}
+          onClose={() => setShowEmojiPicker(false)}
+        />
+      </FloatingPanel>
 
       {/* Hidden file input */}
       <input

@@ -3,15 +3,17 @@
 import { useState, useMemo } from 'react'
 import { useAppStore } from '@/lib/store/app-store'
 import type { ActivityItem } from '@/lib/store/app-store'
-import { X, Bell, AtSign, MessageSquare, Heart, CheckCheck, ChevronDown } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { X, Bell, AtSign, MessageSquare, Heart, CheckCheck, ChevronDown, ArrowLeft } from 'lucide-react'
+import { useT, useRelativeTime } from '@/lib/i18n'
 
 const PAGE_SIZE = 20
 
 function ActivityItemRow({ item, onNavigate }: { item: ActivityItem; onNavigate: () => void }) {
   const { setCurrentChannelId, closeActivity, markActivityRead } = useAppStore()
+  const t = useT()
+  const relativeTime = useRelativeTime()
 
-  const senderName = item.message.sender?.display_name || 'Someone'
+  const senderName = item.message.sender?.display_name || t('Someone')
   const senderInitial = senderName[0]?.toUpperCase() || '?'
   const contentPreview = item.message.content
     .replace(/@[a-f0-9-]+/g, '@user')
@@ -32,10 +34,10 @@ function ActivityItemRow({ item, onNavigate }: { item: ActivityItem; onNavigate:
   }[item.type]
 
   const label = {
-    mention: 'mentioned you',
-    dm: 'sent you a message',
-    reaction: 'reacted to your message',
-    thread_reply: 'replied to a thread',
+    mention: t('mentioned you'),
+    dm: t('sent you a message'),
+    reaction: t('reacted to your message'),
+    thread_reply: t('replied to a thread'),
   }[item.type]
 
   return (
@@ -94,7 +96,7 @@ function ActivityItemRow({ item, onNavigate }: { item: ActivityItem; onNavigate:
               &middot;
             </span>
             <span className="text-[11px]" style={{ color: '#8E8EA0' }}>
-              {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+              {relativeTime(item.timestamp)}
             </span>
           </div>
         </div>
@@ -113,6 +115,7 @@ function ActivityItemRow({ item, onNavigate }: { item: ActivityItem; onNavigate:
 export function ActivityPanel() {
   const { activityOpen, activities, closeActivity, markAllActivitiesRead } = useAppStore()
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const t = useT()
 
   // Split into unread and read
   const { unreadItems, readItems } = useMemo(() => {
@@ -143,13 +146,21 @@ export function ActivityPanel() {
   const showUnreadHeader = unreadItems.length > 0
   const showReadHeader = visibleCount > unreadItems.length && readItems.length > 0
 
+  // 移动端:整屏浮层(z-30,低于侧边栏抽屉的 z-50);桌面端:左侧固定宽度面板。
   return (
-    <div className="w-[380px] flex flex-col h-full" style={{ background: '#fff', borderRight: '1px solid #E5E1EE' }}>
+    <div className="fixed inset-0 z-30 flex flex-col h-full bg-white md:static md:z-auto md:w-[380px] md:shrink-0 md:border-r md:border-[#E5E1EE] pt-[env(safe-area-inset-top)]">
       {/* Header */}
-      <div className="px-4 py-3 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid #E5E1EE' }}>
+      <div className="px-3 md:px-4 py-3 flex items-center justify-between shrink-0 border-b border-[#E5E1EE]">
         <div className="flex items-center gap-2">
+          <button
+            className="md:hidden h-8 w-8 -ml-1 rounded-lg flex items-center justify-center hover:bg-[#F5F2FF] transition-colors"
+            onClick={closeActivity}
+            aria-label={t('Back')}
+          >
+            <ArrowLeft className="h-5 w-5" style={{ color: '#2D2B3D' }} />
+          </button>
           <Bell className="h-4.5 w-4.5" style={{ color: '#7C5CFC' }} />
-          <h3 className="font-bold text-[16px]" style={{ color: '#2D2B3D' }}>Activity</h3>
+          <h3 className="font-bold text-[16px]" style={{ color: '#2D2B3D' }}>{t('Activity')}</h3>
           {unreadItems.length > 0 && (
             <span
               className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full text-white"
@@ -165,10 +176,10 @@ export function ActivityPanel() {
               onClick={markAllActivitiesRead}
               className="h-7 px-2 rounded-lg flex items-center gap-1 text-[12px] transition-colors hover:bg-[#F5F2FF]"
               style={{ color: '#7C5CFC' }}
-              title="Mark all as read"
+              title={t('Mark all as read')}
             >
               <CheckCheck className="h-3.5 w-3.5" />
-              <span>Mark read</span>
+              <span>{t('Mark read')}</span>
             </button>
           )}
           <button
@@ -191,10 +202,10 @@ export function ActivityPanel() {
               <Bell className="h-7 w-7" style={{ color: '#7C5CFC' }} />
             </div>
             <h4 className="text-[15px] font-semibold mb-1" style={{ color: '#2D2B3D' }}>
-              No activity yet
+              {t('No activity yet')}
             </h4>
             <p className="text-[13px]" style={{ color: '#8E8EA0' }}>
-              When someone mentions you with @, sends you a DM, or reacts to your messages, it will show up here.
+              {t('When someone mentions you with @, sends you a DM, or reacts to your messages, it will show up here.')}
             </p>
           </div>
         ) : (
@@ -207,7 +218,7 @@ export function ActivityPanel() {
               >
                 <div className="h-1.5 w-1.5 rounded-full" style={{ background: '#7C5CFC' }} />
                 <span className="text-[12px] font-bold uppercase tracking-wide" style={{ color: '#7C5CFC' }}>
-                  New ({unreadItems.length})
+                  {t('New ({count})', { count: unreadItems.length })}
                 </span>
               </div>
             )}
@@ -223,7 +234,7 @@ export function ActivityPanel() {
                 style={{ background: '#FAFAFA', borderBottom: '1px solid #F0EBFF', borderTop: '1px solid #F0EBFF' }}
               >
                 <span className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: '#8E8EA0' }}>
-                  Earlier
+                  {t('Earlier')}
                 </span>
               </div>
             )}
@@ -240,7 +251,7 @@ export function ActivityPanel() {
                 style={{ color: '#7C5CFC', borderTop: '1px solid #F0EBFF' }}
               >
                 <ChevronDown className="h-4 w-4" />
-                Show more ({remainingCount} remaining)
+                {t('Show more ({count} remaining)', { count: remainingCount })}
               </button>
             )}
 
@@ -248,7 +259,7 @@ export function ActivityPanel() {
             {!hasMore && allOrdered.length > PAGE_SIZE && (
               <div className="px-4 py-3 text-center">
                 <span className="text-[12px]" style={{ color: '#C4C0D0' }}>
-                  All {allOrdered.length} activities loaded
+                  {t('All {count} activities loaded', { count: allOrdered.length })}
                 </span>
               </div>
             )}

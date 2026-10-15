@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useT } from '@/lib/i18n'
 import { Camera, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,6 +46,8 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
     }
   }, [open, user])
 
+  const t = useT()
+
   /**
    * Resize and compress an image file to max 500x500, output as JPEG.
    */
@@ -71,18 +74,18 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
         canvas.width = width
         canvas.height = height
         const ctx = canvas.getContext('2d')
-        if (!ctx) { reject(new Error('Canvas not supported')); return }
+        if (!ctx) { reject(new Error(t('Canvas not supported'))); return }
         ctx.drawImage(img, 0, 0, width, height)
         canvas.toBlob(
           (blob) => {
             if (blob) resolve(blob)
-            else reject(new Error('Compression failed'))
+            else reject(new Error(t('Compression failed')))
           },
           'image/jpeg',
           quality
         )
       }
-      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')) }
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(t('Failed to load image'))) }
       img.src = url
     })
   }
@@ -93,13 +96,13 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      setError('Please select an image file')
+      setError(t('Please select an image file'))
       return
     }
 
     // Accept up to 20MB raw — we'll compress it down
     if (file.size > 20 * 1024 * 1024) {
-      setError('Image must be less than 20MB')
+      setError(t('Image must be less than 20MB'))
       return
     }
 
@@ -142,7 +145,7 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
       setAvatarUrl(newUrl)
     } catch (err) {
       console.error('Upload failed:', err)
-      setError(err instanceof Error ? err.message : 'Failed to upload image.')
+      setError(err instanceof Error ? err.message : t('Failed to upload image.'))
       setAvatarPreview(avatarUrl) // Revert preview
     } finally {
       setUploading(false)
@@ -156,7 +159,7 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
 
   async function handleSave() {
     if (!user || !displayName.trim()) {
-      setError('Display name is required')
+      setError(t('Display name is required'))
       return
     }
 
@@ -197,7 +200,7 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
       onOpenChange(false)
     } catch (err) {
       console.error('Failed to save profile:', err)
-      setError('Failed to save profile. Please try again.')
+      setError(t('Failed to save profile. Please try again.'))
     } finally {
       setSaving(false)
     }
@@ -212,9 +215,9 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Profile</DialogTitle>
+          <DialogTitle>{t('Edit Profile')}</DialogTitle>
           <DialogDescription>
-            Update your profile information and photo
+            {t('Update your profile information and photo')}
           </DialogDescription>
         </DialogHeader>
 
@@ -225,7 +228,7 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
               {avatarPreview ? (
                 <img
                   src={avatarPreview}
-                  alt="Avatar"
+                  alt={t('Avatar')}
                   className="h-24 w-24 rounded-2xl object-cover shadow-sm"
                 />
               ) : (
@@ -273,25 +276,25 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
               className="mt-2 text-xs hover:underline"
               style={{ color: '#7C5CFC' }}
             >
-              {uploading ? 'Uploading...' : 'Change photo'}
+              {uploading ? t('Uploading...') : t('Change photo')}
             </button>
           </div>
 
           {/* Display name */}
           <div className="space-y-1.5">
-            <Label htmlFor="display-name">Display name</Label>
+            <Label htmlFor="display-name">{t('Display name')}</Label>
             <Input
               id="display-name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Your name"
+              placeholder={t('Your name')}
               maxLength={50}
             />
           </div>
 
           {/* Status */}
           <div className="space-y-1.5">
-            <Label>Status</Label>
+            <Label>{t('Status')}</Label>
             <div className="flex gap-2">
               <div className="relative">
                 <Input
@@ -305,7 +308,7 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
               <Input
                 value={statusText}
                 onChange={(e) => setStatusText(e.target.value)}
-                placeholder="What's your status?"
+                placeholder={t("What's your status?")}
                 className="flex-1"
                 maxLength={100}
               />
@@ -333,16 +336,16 @@ export function ProfileEditDialog({ open, onOpenChange }: ProfileEditDialogProps
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button onClick={handleSave} disabled={saving || uploading} style={{ background: '#7C5CFC', color: '#fff' }}>
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Saving...
+                {t('Saving...')}
               </>
             ) : (
-              'Save changes'
+              t('Save changes')
             )}
           </Button>
         </DialogFooter>

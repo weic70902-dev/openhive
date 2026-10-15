@@ -6,6 +6,7 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store/app-store'
 import type { SlashCommand } from '@/types/database'
 import { Terminal, Zap } from 'lucide-react'
+import { useT } from '@/lib/i18n'
 
 interface SlashCommandPickerProps {
   query: string
@@ -19,6 +20,7 @@ export function SlashCommandPicker({ query, onSelect, onClose, position }: Slash
   const [customCommands, setCustomCommands] = useState<SlashCommand[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+  const t = useT()
 
   useEffect(() => {
     if (!workspace) return
@@ -110,7 +112,7 @@ export function SlashCommandPicker({ query, onSelect, onClose, position }: Slash
                 {match.source === 'builtin' ? match.command : `/${match.command}`}
               </span>
               <span className="text-xs ml-2" style={{ color: '#8E8EA0' }}>
-                {match.description}
+                {t(match.description)}
               </span>
             </div>
           </button>
