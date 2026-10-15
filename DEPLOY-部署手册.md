@@ -1141,3 +1141,48 @@ Vercel 与这些网段毫无关系，属典型 DNS 投毒特征。
 
 > 注意：即使换成自有域名解决了 DNS 污染，Vercel 的 IP 在中国大陆仍可能被限速或
 > 间歇性阻断，稳定性无法保证。若要面向国内用户提供稳定服务，建议走国内云 + 备案。
+
+## 10.8 备选部署平台（应对 `vercel.app` 在大陆不可达）
+
+### 硬约束
+
+OpenHive 是 **Next.js SSR + API Routes + middleware** 应用（`/api/setup`、`/api/upload`、
+`/api/provision` 等为服务端路由），**不是纯静态站**。因此：
+
+- ❌ 纯静态托管（GitHub Pages、Gitee Pages、Netlify 静态模式）**不可用**
+- ✅ 必须选能运行 Node 运行时的平台
+
+### 方案对比（2026-10 调研）
+
+| 平台 | 免费 | ICP 备案 | 大陆可达性 | Next.js 全栈 | 改造量 |
+|---|---|---|---|---|---|
+| Vercel（现状） | ✅ | 免 | ❌ 域名被 DNS 污染 | 原生支持 | — |
+| **腾讯 EdgeOne Pages**（加速区选「不含中国大陆」） | ✅ | **免** | 较好（走海外边缘节点） | ✅ 支持 | 小 |
+| 腾讯 EdgeOne Pages（选「含中国大陆」） | ✅ | **必须** | 最快 | ✅ | 小 |
+| 阿里云 ESA Pages | ✅ | 同上逻辑 | 同上 | ✅ | 小（注意 Pages 2000 文件上限） |
+| Cloudflare Pages / Workers | ✅ | 免 | 中等 | 需 `@opennextjs/cloudflare` 适配 | 中 |
+| Zeabur | ❌ 托管 $5/月起（14 天试用） | 免 | 默认域名大陆可开 | ✅ | 小 |
+| 国内轻量云 + 自托管（Dokploy/Coolify） | ❌ 约 ¥100/年 | **必须** | 最快 | ✅ | 大 |
+
+### 关键结论
+
+1. **想「免费 + 免备案 + 大陆能访问」，最匹配的是腾讯 EdgeOne Pages**
+   —— 加速区域选**「全球可用区（不含中国大陆）」**即无需备案，
+   官方与用户反馈均称大陆访问较流畅；选「含中国大陆」才需要 ICP 备案，
+   但可拿到大陆边缘节点，速度最好。
+2. **备案是无法绕开的**：任何使用**中国大陆节点 + 自有域名**的方案，工信部一律要求 ICP 备案。
+   免备案的代价就是走海外节点。
+3. **Zeabur 的免费版已不再提供免费托管**（免费版仅用于管理你自购的服务器，
+   且不含自定义域名），托管需 $5/月。
+4. **Cloudflare Pages** 免备案且免费额度大，但 Next.js 需接入 `@opennextjs/cloudflare`
+   改造（Edge Runtime 兼容、`nodejs_compat` 等），工作量中等。
+
+### 建议的验证顺序
+
+1. **先做 hosts 测试**（零成本、5 分钟）判断 Vercel 的 IP 本身在大陆是否可达：
+   把 `C:\Windows\System32\drivers\etc\hosts` 中加入
+   `216.198.79.67 openhive-pearl.vercel.app`（需管理员权限），刷新 DNS 后访问。
+   - **能打开** → 说明只是 DNS 污染，**绑自有域名即可解决**，不必换平台
+   - **仍打不开** → Vercel IP 被阻断，**必须换平台**
+2. 若确认需换平台，优先试 **EdgeOne Pages（不含大陆可用区）**：
+   从 GitHub 导入仓库、构建命令 `next build`、设置三个 `NEXT_PUBLIC_*` / `SUPABASE_*` 环境变量。
