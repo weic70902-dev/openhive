@@ -29,7 +29,10 @@ jobs:
         with:
           node-version: 22
 
+      # 令牌只通过环境变量注入，不写在命令行里 —— 避免出现在日志/进程列表中。
+      # Vercel CLI 原生读取 VERCEL_TOKEN 环境变量。
+      # CLI 版本锁定为具体版本，避免 npx 每次拉取最新版带来的供应链风险。
       - name: Deploy to Vercel
-        run: npx --yes vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN"
+        run: npx --yes vercel@64.2.0 deploy --prod --yes
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
