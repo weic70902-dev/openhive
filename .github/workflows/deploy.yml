@@ -1,0 +1,35 @@
+name: Deploy to Vercel
+
+# 推送到 main 即自动部署到 Vercel 生产环境。
+# 不依赖 Vercel 的 GitHub 集成（该集成需要在 Vercel 侧建立 GitHub 登录连接），
+# 而是由 GitHub Actions 直接调用 Vercel CLI 部署，因此无需任何人工授权。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 同一时间只跑一个生产部署，避免并发推送互相覆盖
+concurrency:
+  group: vercel-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy production
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy to Vercel
+        run: npx --yes vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
