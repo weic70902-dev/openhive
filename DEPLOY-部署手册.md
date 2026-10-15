@@ -896,6 +896,7 @@ Vercel → Project → Settings → Environment Variables，**Production / Previ
 
 1. **Auth → URL Configuration**：Site URL 改为 `https://<你的vercel域名>`，
    Redirect URLs 加上同款（否则登录回调跳不回线上）
+   —— ✅ **已于 2026-10-15 完成，详见 10.6**
 2. **Auth → Sign In / Providers**：注册好管理员账号后**关闭公开注册**（`disable_signup`）
 3. **可选 · 自定义 SMTP**：免费层内置邮件每小时仅 2 封，注册/邀请靠邮件的话必须配
 4. **可选 · 附件桶私有化**：执行 `./apply-sql.sh <sbp_令牌> openhive/private-attachments.sql`，
@@ -1035,3 +1036,56 @@ curl -X POST "https://api.vercel.com/v3/user/tokens?teamId=team_28ThcTtMed2MsbV4
 
 五次均在 Vercel 侧产出 `target=production` 且 `state=READY` 的部署，
 并带上对应 `githubCommitSha`。最后一次运行日志中 `vcp_` 明文出现 **0 次**。
+
+## 10.6 Supabase Auth 回调地址配置（已完成）
+
+项目 ref：`dkiyumhhvfwltvcdjykr`。通过 Supabase 管理 API 修改
+（`PATCH /v1/projects/{ref}/config/auth`，需 `sbp_` 管理令牌；
+`service_role` 密钥属数据平面，**改不了**这项配置）。
+
+### 修改前后对比
+
+| 字段 | 修改前 | 修改后 |
+|---|---|---|
+| `site_url` | `http://localhost:3000` | `https://openhive-pearl.vercel.app` |
+| `uri_allow_list` | `http://localhost:3000,http://localhost:3000/auth` | 见下方 6 条 |
+
+修改后的 `uri_allow_list`：
+
+```
+http://localhost:3000
+http://localhost:3000/auth
+https://openhive-pearl.vercel.app
+https://openhive-pearl.vercel.app/**
+https://openhive-astart1.vercel.app
+https://openhive-astart1.vercel.app/**
+```
+
+**localhost 条目特意保留**，否则本地开发环境的登录回跳会失效。
+
+### 完整配置备份
+
+修改前的 243 个字段全量备份在**仓库外**（含 SMTP 密码等敏感字段，切勿提交）：
+
+```
+E:\space\workmeta\.workbuddy-ai\backups\supabase-auth-config-2026-10-15.json
+```
+
+回滚方式：把该文件中原始的 `site_url` 与 `uri_allow_list` 重新 `PATCH` 回去。
+
+### 项目相关背景
+
+- 该项目 `mailer_autoconfirm = true`（邮箱确认已关闭），注册后可直接登录，
+  对回调地址的依赖较小；回调主要影响**密码重置**与 **OAuth / 魔法链接**
+- **本地与线上共用同一个 Supabase 项目**（`NEXT_PUBLIC_SUPABASE_URL` 两侧逐字节相同），
+  因此账号与全部聊天数据本来就只有一份，线上无需重新注册，也无需任何数据迁移
+- 副作用：线上线下数据**双向同步**——本地开发时删除的消息，线上也会消失
+
+### 验证说明
+
+配置写入后用 `GET` 复核，三项断言全部通过（`site_url` 已更新、
+线上通配回调已加入、localhost 已保留）。
+
+> 注：尝试用 `/auth/v1/otp` 做功能性验证时被 Supabase 邮件限流拦截（HTTP 429），
+> 未继续重试以免真实发出邮件。`/auth/v1/admin/generate_link` 不做回调白名单校验，
+> 不能用于此验证。最终以配置读取结果为准。
