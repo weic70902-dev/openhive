@@ -1089,3 +1089,55 @@ E:\space\workmeta\.workbuddy-ai\backups\supabase-auth-config-2026-10-15.json
 > 注：尝试用 `/auth/v1/otp` 做功能性验证时被 Supabase 邮件限流拦截（HTTP 429），
 > 未继续重试以免真实发出邮件。`/auth/v1/admin/generate_link` 不做回调白名单校验，
 > 不能用于此验证。最终以配置读取结果为准。
+
+## 10.7 ⚠️ 已知问题：`vercel.app` 域名在中国大陆无法直连
+
+### 现象
+
+浏览器打开 `https://openhive-pearl.vercel.app` 报
+`ERR_CONNECTION_TIMED_OUT`（响应时间太长）。
+
+### 结论：站点本身正常，是 DNS 污染
+
+用 DoH 从境外解析并实际抓取页面，**站点完全正常**（HTTP 200，标题 `OpenHive`），
+部署状态 READY。问题出在本地网络对 `vercel.app` 的 DNS 解析被投毒。
+
+### 证据（同一域名，三个解析器返回三组完全不同的伪造 IP）
+
+| 解析方式 | 返回的 IP | 归属 |
+|---|---|---|
+| 本地默认 DNS | `2a03:2880:f11a:83:face:b00c:0:25de` | Meta（Facebook） |
+| `8.8.8.8` | `2a03:2880:f111:83:face:b00c:0:25de`、`108.160.165.11` | Meta、Dropbox |
+| `1.1.1.1` | `2a03:2880:f10f:83:face:b00c:0:25de`、`199.59.149.205` | Meta、Twitter |
+| **加密 DNS（真实值）** | **`216.198.79.67`、`64.29.17.67`** | **Vercel** |
+
+`2a03:2880::/32` 中的 `face:b00c` 是 Meta 的固定特征，`31.13.85.34` 等也是 Meta 段 ——
+Vercel 与这些网段毫无关系，属典型 DNS 投毒特征。
+注意：`8.8.8.8` / `1.1.1.1` 的**明文 UDP 53 查询同样被劫持**，
+所以「把 DNS 改成 8.8.8.8」这种做法**通常无效**，必须用 **DoH/DoT**（加密 DNS）。
+
+### 域名是怎么来的
+
+`openhive-pearl.vercel.app` 是 Vercel **自动分配的平台共享域名**，格式为
+`<项目名>-<随机词>.vercel.app`。项目名是 `openhive`，理想域名是
+`openhive.vercel.app`，但该名称已被其他账号占用，Vercel 便追加随机词 `pearl`。
+另一个别名 `openhive-astart1.vercel.app` 是 `<项目名>-<团队名>.vercel.app` 格式。
+
+**这是 Vercel 控制的域名，不属于项目方资产。**
+
+### 可选方案
+
+| 方案 | 效果 | 说明 |
+|---|---|---|
+| 挂代理访问 | ✅ 立即生效 | 临时验证用 |
+| 系统/浏览器启用 **DoH** | ⚠️ 可能有效 | 需 DoH 服务器本身未被阻断，国内不稳定 |
+| 把 DNS 改成 8.8.8.8 | ❌ 通常无效 | 明文 DNS 同样被劫持 |
+| 绑定**自有域名** | ✅ 推荐 | 自有域名一般未被污染；Vercel 免费支持并自动签发 SSL |
+| 改项目名换 `*.vercel.app` | ❌ 无效 | 仍在 `vercel.app` 下，同样被污染 |
+| 迁移到国内可访问的托管 | ✅ 长期方案 | 面向国内用户需备案 |
+
+绑定自有域名的操作：Vercel → Project → Settings → Domains → Add，
+然后在域名注册商处按提示添加 A / CNAME 记录。
+
+> 注意：即使换成自有域名解决了 DNS 污染，Vercel 的 IP 在中国大陆仍可能被限速或
+> 间歇性阻断，稳定性无法保证。若要面向国内用户提供稳定服务，建议走国内云 + 备案。
