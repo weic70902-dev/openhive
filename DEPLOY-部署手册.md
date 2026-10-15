@@ -1201,12 +1201,47 @@ OpenHive 是 **Next.js SSR + API Routes + middleware** 应用（`/api/setup`、`
 **结论：迁移可行，主要是配置工作**（连仓库 → 构建命令 `next build` → 配 3 个环境变量），
 真正的适配点只有 `/api/setup` 一个路由。
 
-### 迁移步骤（待执行）
+### 迁移步骤（控制台精确路径，依据官方文档 `product/1552/119338`）
 
-1. 用邮箱注册 `edgeone.ai` 国际站账号（无需实名/信用卡）
-2. 连接 GitHub 仓库 `weic70902-dev/openhive`
-3. 加速区域选 **「全球可用区（不含中国大陆）」**（免备案）
-4. 配置环境变量：`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、
-   `SUPABASE_SERVICE_ROLE_KEY`（与 Vercel 侧完全一致）
-5. 部署后把 Supabase Auth 的 Site URL / Redirect URLs 换成新域名
-6. 处理 `/api/setup`（标记 Node 运行时或禁用）
+**步骤一 · 进入创建入口**
+- 控制台地址：`console.cloud.tencent.com/edgeone`（国内站）或 `console.tencentcloud.com`（国际站）
+- 若已有其他资源：点最上方的 **Makers** Tab，在该 Tab 下创建项目
+- 若是首次登录：进入场景选择大厅，鼠标移到 **创建项目**
+- 创建方式选 **「导入 Git 仓库」**
+
+**步骤二 · 连接 Git 仓库**
+1. 点 **Github** 链接仓库
+2. 点 **Authorize EO Makers** 授权
+3. 选择仓库 —— 建议选 **Only select repositories**，只勾 `openhive`（最小权限）
+4. 点 **Install**
+
+**步骤三 · 自定义构建**（关键一步）
+1. 选择仓库 `weic70902-dev/openhive`（分支 `main`）
+2. 框架会**自动识别为 Next.js**，一般无需手改
+3. 构建命令填 `next build`（对应 `package.json` 的 `build` 脚本）
+4. ⚠️ **加速区域必须选「全球可用区（不含中国大陆）」** —— 这是免备案的关键。
+   官方说明：加速区域决定节点资源分配，以及**添加自定义域名时是否需要备案**。
+   选「全球可用区」（含大陆）则必须完成工信部 ICP 备案。
+5. 检查配置后点 **开始部署**
+
+**步骤四 · 配置环境变量**
+在项目设置 / 环境变量中填入（值与 Vercel 侧完全一致，见 `openhive/.env.vercel`）：
+
+| 变量 |
+|---|
+| `NEXT_PUBLIC_SUPABASE_URL` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| `SUPABASE_SERVICE_ROLE_KEY` |
+
+**步骤五 · 验证与后续**
+- 「构建部署」右上角点 **预览**，或「项目概览」右上角点 **预览**，生成访问链接
+- 默认域名格式类似 `xxx.xxxxx.edgeone.com`
+- 之后**推送到主干分支会自动拉取并重新部署**
+- 部署成功后把 Supabase Auth 的 Site URL / Redirect URLs 换成新域名（见 10.6 的改法）
+- 处理 `/api/setup`：它是唯一依赖 Node 专有模块的路由，标为 Node 云函数或直接禁用
+
+**注意事项**
+- 免费套餐需在控制台**一键开通**；权益含不限量的安全加速流量与请求额度，
+  但**函数调用、KV 存储、项目构建次数为每月定额**（API 路由会计入函数调用）
+- 仓库需为**公开**或已授权给 EdgeOne（本仓库 `private=false`，符合）
+- `package.json` 已声明 `engines.node = 22.x`
