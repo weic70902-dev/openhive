@@ -907,3 +907,53 @@ Vercel → Project → Settings → Environment Variables，**Production / Previ
 - 注册 → 建工作区 → 发消息 → 上传图片（验证 `SUPABASE_SERVICE_ROLE_KEY`）
 - 阅后即焚开关（单方开启即生效）→ 实时预览开关（对方免开关可见）
 - 手机浏览器检查：长按消息弹工具栏、底部输入框不被小黑条遮挡
+
+---
+
+# 十、Vercel 部署实录（2026-10-15 已完成首次上线）
+
+## 10.1 部署信息
+
+| 项 | 值 |
+|---|---|
+| Vercel 项目 | `astart1/openhive`（scope：`astart1` 团队） |
+| projectId | `prj_EZSCVo8LyxWrhwz9AcHnYoWhrp5z` |
+| 生产域名 | **https://openhive-pearl.vercel.app** |
+| 备用别名 | https://openhive-astart1.vercel.app |
+| 部署 ID | `dpl_6LRpmmXXF6ZuFS6m4gLSNqMVWeRk`（状态 READY） |
+| 构建 | 框架自动识别 Next.js，构建/输出/安装命令全默认，远程构建约 53s |
+| Node 版本 | 项目默认 `24.x`，`package.json` 声明 `engines.node=22.x`，构建通过 |
+
+## 10.2 已自动完成的步骤
+
+1. **环境变量**：`NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` /
+   `SUPABASE_SERVICE_ROLE_KEY` 已写入 **Production / Preview / Development** 三套环境；
+   其中两个公开变量与本地 `.env.local` 逐字节比对一致。
+2. **关闭部署保护**：Vercel 新建项目默认开启 Vercel Authentication
+   （`ssoProtection.deploymentType = all_except_custom_domains`），会导致所有访问要求登录。
+   已通过 API 置 `ssoProtection` 与 `passwordProtection` 为 `null`。
+3. **生产部署**：`vercel --prod` 完成，部署状态 READY，别名已指向生产域名。
+
+## 10.3 ⚠️ 仍需人工完成的事项
+
+1. **开启「推送即自动部署」（推荐）**
+   本次是通过 CLI 上传本地代码部署的，**GitHub 推送尚不会触发自动部署**。
+   原因：Vercel 账号当前只有邮箱登录方式，缺少 GitHub 登录连接，因此
+   `vercel git connect` 报错
+   `You need to add a Login Connection to your GitHub account first`。
+   解决：Vercel → 右上角头像 → **Settings → Login Connections → Connect GitHub**
+   完成一次 OAuth 授权；之后在本项目目录执行 `vercel git connect` 即可打通，
+   生产分支为 `main`。
+
+2. **Supabase Auth 配置**（见 9.5）：Site URL 与 Redirect URLs 改为
+   `https://openhive-pearl.vercel.app`，否则线上登录回调跳不回来。
+
+3. **关闭公开注册**：注册好管理员账号后执行。
+
+## 10.4 已产生的本地文件（均被 `.gitignore` 忽略，不入库）
+
+- `.vercel/project.json`：CLI 链接信息（projectId / orgId）
+- `.env.vercel`：供复制粘贴的环境变量清单（含真实密钥，**勿提交、勿外发**）
+- `.env.local`：被 `vercel link` 追加了 `VERCEL_OIDC_TOKEN`
+
+> 安全提醒：本次部署所用的 Vercel 临时令牌与 GitHub PAT 均应在用完后立即吊销。
