@@ -1154,35 +1154,59 @@ OpenHive 是 **Next.js SSR + API Routes + middleware** 应用（`/api/setup`、`
 
 ### 方案对比（2026-10 调研）
 
-| 平台 | 免费 | ICP 备案 | 大陆可达性 | Next.js 全栈 | 改造量 |
+| 平台 | 免费 | ICP 备案 | 大陆可达性 | Next.js 全栈 | 注册门槛 |
 |---|---|---|---|---|---|
-| Vercel（现状） | ✅ | 免 | ❌ 域名被 DNS 污染 | 原生支持 | — |
-| **腾讯 EdgeOne Pages**（加速区选「不含中国大陆」） | ✅ | **免** | 较好（走海外边缘节点） | ✅ 支持 | 小 |
-| 腾讯 EdgeOne Pages（选「含中国大陆」） | ✅ | **必须** | 最快 | ✅ | 小 |
-| 阿里云 ESA Pages | ✅ | 同上逻辑 | 同上 | ✅ | 小（注意 Pages 2000 文件上限） |
-| Cloudflare Pages / Workers | ✅ | 免 | 中等 | 需 `@opennextjs/cloudflare` 适配 | 中 |
-| Zeabur | ❌ 托管 $5/月起（14 天试用） | 免 | 默认域名大陆可开 | ✅ | 小 |
-| 国内轻量云 + 自托管（Dokploy/Coolify） | ❌ 约 ¥100/年 | **必须** | 最快 | ✅ | 大 |
+| Vercel（现状） | ✅ | 免 | ❌ 域名被 DNS 污染 | 原生支持 | 邮箱 |
+| **腾讯 EdgeOne Makers**（加速区选「不含中国大陆」） | ✅ 永久免费 | **免** | ✅ 较好（2,500+ 亚洲节点） | ✅ **零配置支持** | 邮箱（国际站无需实名） |
+| 腾讯 EdgeOne Makers（选「含中国大陆」） | ✅ | **必须** | ✅ 最快 | ✅ | 需实名 |
+| 阿里云 ESA Pages | ✅ | 同上逻辑 | ✅ | ✅ | 需实名（Pages 有 2000 文件上限） |
+| Cloudflare Pages / Workers | ✅ | 免 | ❌ **默认域名 `pages.dev` 同样被污染** | 需 `@opennextjs/cloudflare` 适配 | 邮箱 |
+| Zeabur | ❌ 托管 $5/月起 | 免 | 默认域名可开 | ✅ | 邮箱 |
+| 国内轻量云 + 自托管 | ❌ 约 ¥100/年 | **必须** | ✅ 最快 | ✅ | 需实名 |
 
 ### 关键结论
 
-1. **想「免费 + 免备案 + 大陆能访问」，最匹配的是腾讯 EdgeOne Pages**
-   —— 加速区域选**「全球可用区（不含中国大陆）」**即无需备案，
-   官方与用户反馈均称大陆访问较流畅；选「含中国大陆」才需要 ICP 备案，
-   但可拿到大陆边缘节点，速度最好。
-2. **备案是无法绕开的**：任何使用**中国大陆节点 + 自有域名**的方案，工信部一律要求 ICP 备案。
-   免备案的代价就是走海外节点。
-3. **Zeabur 的免费版已不再提供免费托管**（免费版仅用于管理你自购的服务器，
+1. **唯一同时满足「免费 + 免备案 + 注册简单 + 大陆可访问」的是腾讯 EdgeOne Makers**
+   （原 EdgeOne Pages，2026-06 升级更名）。加速区域选
+   **「全球可用区（不含中国大陆）」即无需备案**（腾讯云官方文档
+   `product/1552/87601` 明确：选「全球可用区」才要求工信部备案）。
+   其国际站（`edgeone.ai`）注册**无需实名、无需信用卡**，免费版官方承诺永久可用。
+2. **Cloudflare 已被排除**：官方给的 `*.pages.dev` / `*.workers.dev` 二级域名
+   自 2022 年起常遭 DNS 污染（实测有 CNAME 到 pages.dev 时解析成 `127.0.0.1` 的案例），
+   与 `vercel.app` 是同一类问题，**换了平台但没换问题**。
+3. **备案无法绕开**：凡使用**中国大陆节点 + 自有域名**，工信部一律要求 ICP 备案。
+   免备案的代价就是走海外/港澳节点。
+4. **Zeabur 的免费版已不再提供免费托管**（免费版仅用于管理你自购的服务器，
    且不含自定义域名），托管需 $5/月。
-4. **Cloudflare Pages** 免备案且免费额度大，但 Next.js 需接入 `@opennextjs/cloudflare`
-   改造（Edge Runtime 兼容、`nodejs_compat` 等），工作量中等。
 
-### 建议的验证顺序
+### EdgeOne Makers 官方能力确认
 
-1. **先做 hosts 测试**（零成本、5 分钟）判断 Vercel 的 IP 本身在大陆是否可达：
-   把 `C:\Windows\System32\drivers\etc\hosts` 中加入
-   `216.198.79.67 openhive-pearl.vercel.app`（需管理员权限），刷新 DNS 后访问。
-   - **能打开** → 说明只是 DNS 污染，**绑自有域名即可解决**，不必换平台
-   - **仍打不开** → Vercel IP 被阻断，**必须换平台**
-2. 若确认需换平台，优先试 **EdgeOne Pages（不含大陆可用区）**：
-   从 GitHub 导入仓库、构建命令 `next build`、设置三个 `NEXT_PUBLIC_*` / `SUPABASE_*` 环境变量。
+- 产品定位：**边缘全栈开发平台**，覆盖「前端页面 + 动态 API + Agent」
+- 全栈框架：**零配置支持 Next.js 全部特性**（官方 FAQ 明确列为 Full-Stack App 场景）
+- Serverless：**从边缘函数到云函数**（Node 云函数可承载需要 Node API 的路由）
+- 部署方式：Git 连接、CLI、MCP、IDE 插件；有 GitHub 自动部署
+- 免费版：**无需信用卡**，官方 FAQ 承诺长期可用
+- 自定义域名：自动签发 SSL
+
+### OpenHive 迁移可行性（已核对源码）
+
+- API 路由共 **8 个**：`invite`、`invite/complete`、`livekit/token`、`provision`、
+  `setup`、`storage`、`upload`、`webhook/[id]`
+- **只有 `/api/setup` 依赖 Node 专有模块**（`fs` 的 `writeFileSync`/`readFileSync`/
+  `existsSync` + `path.join`），其余 7 个均为 fetch 型，边缘运行时友好
+- 未显式声明 `runtime`，默认 Node.js
+- 注：`/api/setup` 写文件本就是**本地开发专用**能力，在 Vercel 上同样不持久，
+  迁移时把它标记为 Node 云函数或直接禁用即可
+
+**结论：迁移可行，主要是配置工作**（连仓库 → 构建命令 `next build` → 配 3 个环境变量），
+真正的适配点只有 `/api/setup` 一个路由。
+
+### 迁移步骤（待执行）
+
+1. 用邮箱注册 `edgeone.ai` 国际站账号（无需实名/信用卡）
+2. 连接 GitHub 仓库 `weic70902-dev/openhive`
+3. 加速区域选 **「全球可用区（不含中国大陆）」**（免备案）
+4. 配置环境变量：`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、
+   `SUPABASE_SERVICE_ROLE_KEY`（与 Vercel 侧完全一致）
+5. 部署后把 Supabase Auth 的 Site URL / Redirect URLs 换成新域名
+6. 处理 `/api/setup`（标记 Node 运行时或禁用）
