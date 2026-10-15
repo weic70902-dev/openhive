@@ -845,3 +845,65 @@ openhive/
 ---
 
 *本手册所有结论均来自源码实际读取与本地运行验证，非推测。*
+
+---
+
+# 九、Vercel 部署准备（推送前清单 · 2026-10-15）
+
+## 9.1 仓库与 remote 结构
+
+| remote | 地址 | 用途 |
+|---|---|---|
+| `upstream` | `https://github.com/arseneHuot/openhive.git` | 上游原仓库，只读，日后拉更新用 |
+| `origin` | `git@github.com:<你的账号>/openhive.git` | 你自己的仓库，SSH 推送 |
+
+- SSH 已验证可用（`ssh -T git@github.com` 返回 `Hi weic70902-dev!`）；
+  `gh` CLI 令牌已失效，不影响 SSH 推送。
+- 本地提交身份：`sf <sf@sy.com>`（git config）。
+- 首个功能大提交：`6eea9ed`，79 文件 / +9778 行（i18n、阅后即焚、实时预览、
+  清空会话、工具栏改版、附件私有化等全部功能与护栏）。
+
+## 9.2 推送前自查（已全部通过）
+
+- `.env.local` 被 `.gitignore` 的 `.env*` 规则忽略，**未入库**；
+  对全部待提交内容（含未跟踪新文件）扫描过 `sbp_` / JWT 密钥特征，零命中
+- `npm run build` 成功（14 条路由），本地 Node v22.22.2，
+  `package.json` 已固定 `engines.node = 22.x`（与 Vercel 默认一致，防未来默认版本升级破坏构建）
+- 源码无硬编码 `localhost`；`middleware.ts` 路由鉴权正常
+
+## 9.3 Vercel 导入设置
+
+- **Framework Preset**：Next.js（自动识别，无需改）
+- **Root Directory**：仓库根目录（Next 应用就在仓库顶层）
+- **Build / Output / Install Command**：全部默认（`next build` / 默认 / `npm install`，
+  有 `package-lock.json`）
+- 不需要 `vercel.json`
+
+## 9.4 构建期环境变量（⚠️ 必须在首次构建**之前**配好）
+
+`NEXT_PUBLIC_*` 是**构建期内联**进 JS 的，不是运行时读取 ——
+漏配不会构建报错，但线上所有 Supabase 请求会打到 `undefined` 上，全站不可用。
+
+Vercel → Project → Settings → Environment Variables，**Production / Preview / Development 三个环境都勾上**：
+
+| 变量 | 必需性 | 说明 |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | **必需** | ⚠️ 只填 `https://xxx.supabase.co`，**不要带 `/rest/v1`**（本手册第一节踩过的坑：向导不报错但全站 404） |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **必需** | 匿名 key |
+| `SUPABASE_SERVICE_ROLE_KEY` | 可选 | 运行时才用：邮件邀请、Storage 桶自动创建；不配则这两项功能降级，聊天不受影响 |
+
+## 9.5 部署后必做（Supabase 侧）
+
+1. **Auth → URL Configuration**：Site URL 改为 `https://<你的vercel域名>`，
+   Redirect URLs 加上同款（否则登录回调跳不回线上）
+2. **Auth → Sign In / Providers**：注册好管理员账号后**关闭公开注册**（`disable_signup`）
+3. **可选 · 自定义 SMTP**：免费层内置邮件每小时仅 2 封，注册/邀请靠邮件的话必须配
+4. **可选 · 附件桶私有化**：执行 `./apply-sql.sh <sbp_令牌> openhive/private-attachments.sql`，
+   跑完**立刻吊销令牌**（https://supabase.com/dashboard/account/tokens）
+
+## 9.6 线上冒烟清单
+
+- `/` 200、`/auth` 200、`/api/setup` 返回 `{"configured":true,...}`
+- 注册 → 建工作区 → 发消息 → 上传图片（验证 `SUPABASE_SERVICE_ROLE_KEY`）
+- 阅后即焚开关（单方开启即生效）→ 实时预览开关（对方免开关可见）
+- 手机浏览器检查：长按消息弹工具栏、底部输入框不被小黑条遮挡
