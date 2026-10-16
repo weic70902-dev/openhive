@@ -37,6 +37,15 @@ yarn-error.log*
 # vercel
 .vercel
 
+# edgeone cli（本地登录凭据 / 匿名部署标记，绝不入库）
+.edgeone
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Tencent Cloud EdgeOne
+.env
+.edgeone/*
+.tef_dist/*
+  
