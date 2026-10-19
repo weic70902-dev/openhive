@@ -1380,3 +1380,101 @@ rm -rf .edgeone/assets .edgeone/cloud-functions
   `npx edgeone makers deploy -n openhive -a overseas -e production`
 - **绑定自有域名**：`overseas` 区域绑自定义域名同样免备案（域名解析 CNAME 到平台分配的目标）
 - **两个平台并存**：EdgeOne 供大陆访问，Vercel 供海外访问，Supabase 同一后端，数据天然互通
+
+---
+
+## 10.10 ClawCloud Run 容器化部署（香港节点，免备案 + 大陆可直连）
+
+### 10.10.1 为什么放弃前两个平台
+
+| 平台 | 现象 | 根因 | 结论 |
+|---|---|---|---|
+| Vercel `*.vercel.app` | 大陆打不开 / 被解析到错误 IP | 域名 DNS 污染 + 边缘 IP 被墙 | 不可用 |
+| EdgeOne Makers `*.edgeone.dev` | 大陆返回 `401`，响应头 `X-EOP-MSG: eo_time missing` | **官方错误码文档明确：`overseas`（全球不含中国大陆）区域对中国大陆网络环境直接返回 401**，必须绑定自定义域名才放行 | 平台级限制，非配置问题 |
+
+因此「大陆可访问 + 免备案」只剩一条硬路径：**把运行时放到香港**（境外节点不涉及 ICP 备案，且距大陆 30–50ms）。
+
+### 10.10.2 架构
+
+```
+GitHub push ──► Actions 构建镜像 ──► ghcr.io/weic70902-dev/openhive:latest
+                                              │
+                                              ▼
+                              ClawCloud Run（Hong Kong 区域）
+                                              │
+                              ┌───────────────┴───────────────┐
+                              ▼                               ▼
+                      平台分配的 HTTPS 域名            （可选）自有域名 CNAME
+                              │
+                              ▼
+                     Supabase（Auth / DB / Storage，不变）
+```
+
+镜像自带 Node 22 运行时与 `server.js`，不依赖任何平台的 Serverless 适配层，所以 `fs` / `path` / 长连接 / 后台任务全部可用。
+
+### 10.10.3 新增文件
+
+| 文件 | 作用 |
+|---|---|
+| `Dockerfile` | 三阶段构建（deps → builder → runner），产出 `standalone` 自包含产物，运行层不含 `node_modules` 全量依赖，镜像约 180MB |
+| `.dockerignore` | 排除 `node_modules` / `.next` / `.env*` / `.edgeone`，避免把本地密钥打进镜像 |
+| `.github/workflows/docker-publish.yml` | push 到 `main` 自动构建并推送 GHCR，带 GHA 层缓存 |
+| `next.config.ts` | 新增 `output: process.env.DOCKER_BUILD === "1" ? "standalone" : undefined`，仅在容器构建时启用，**不影响 Vercel / EdgeOne 的既有构建方式** |
+
+### 10.10.4 环境变量矩阵（关键）
+
+`NEXT_PUBLIC_*` 会在 `next build` 时被**内联进浏览器 bundle**，所以必须作为**构建参数**传入；其余私密变量只在**运行时**注入，绝不进镜像。
+
+| 变量 | 注入时机 | 位置 | 是否敏感 |
+|---|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | 构建期 | Actions 仓库 Variables → Docker `--build-arg` | 否（本来就公开） |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 构建期 | 同上 | 否（anon key 设计上公开，靠 RLS 保护） |
+| `SUPABASE_SERVICE_ROLE_KEY` | **运行期** | ClawCloud 应用环境变量 | **是**（绕过 RLS，只允许服务端） |
+| `STORAGE_PROVIDER` | 运行期 | ClawCloud 应用环境变量 | 否 |
+| `S3_*`（可选） | 运行期 | ClawCloud 应用环境变量 | **是** |
+
+> ⚠️ `SUPABASE_SERVICE_ROLE_KEY` 不要配成 GitHub Actions 的 build-arg，否则会永久留在镜像层里。
+
+### 10.10.5 部署步骤
+
+1. **配仓库变量**：`Settings → Secrets and variables → Actions → Variables` 新建
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+2. **触发构建**：push 到 `main`，或 Actions 页手动 `Run workflow`。
+3. **开放镜像拉取**：`GitHub → 个人头像 → Your packages → openhive → Package settings → Change visibility → Public`
+   （私有镜像需在 ClawCloud 里配 registry 凭据，公开镜像可跳过这一步）
+4. **ClawCloud 创建应用**：`console.run.claw.cloud → App Launchpad → Create App`
+   - Workspace 区域：**Hong Kong**（不要用自动分配，自动分配会落到日本）
+   - Image：`ghcr.io/weic70902-dev/openhive:latest`
+   - CPU / 内存：`0.5 vCPU / 1 GiB` 起步（镜像已 standalone，不需要构建内存）
+   - Network：开启 **External**，端口 **3000**
+   - Environment：填 10.10.4 里「运行期」那一组
+   - 点 `Deploy`，约 1–2 分钟起服务
+5. **验收**：访问分配的域名 → `GET /api/setup` 应返回
+   `{"configured":true,"hasServiceKey":true,"storageProvider":"supabase"}`
+6. **同步 Supabase 回调**：`site_url` 改为新域名，`uri_allow_list` 追加新域名（保留 localhost 与旧域名，便于回滚）。
+
+### 10.10.6 成本与限制
+
+| 项 | 说明 |
+|---|---|
+| 费用 | GitHub 账号满 180 天 → 每月 $5 额度；0.5C1G 常驻约 $2–3/月，**在额度内** |
+| 大陆延迟 | 香港节点实测 100–200ms（比大陆 10–30ms 慢，比 Vercel/EdgeOne 的「打不开」好得多） |
+| 磁盘 | 免费层 10GB，镜像 + 日志占用约 1GB |
+| 稳定性 | 免费额度政策由平台单方调整，**不适合长期生产**；长期建议迁到香港轻量 VPS（见 10.10.7） |
+| 数据持久化 | 容器文件系统是临时的，但本项目生产环境**不写盘**（`/api/setup` 的 POST 有 `NODE_ENV === 'production'` 拦截，只读环境变量），数据全在 Supabase，重启不丢数据 |
+
+### 10.10.7 迁移到自有 VPS（长期方案）
+
+同一镜像可直接在任意香港 VPS 上跑，无需改代码：
+
+```bash
+docker run -d --name openhive --restart=always \
+  -p 3000:3000 \
+  -e NEXT_PUBLIC_SUPABASE_URL=... \
+  -e NEXT_PUBLIC_SUPABASE_ANON_KEY=... \
+  -e SUPABASE_SERVICE_ROLE_KEY=... \
+  ghcr.io/weic70902-dev/openhive:latest
+```
+
+前置 Nginx + Certbot 反代 `127.0.0.1:3000` 即可拿到 HTTPS。

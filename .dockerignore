@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.github
+.vercel
+.edgeone
+.env
+.env.*
+!.env.example
+npm-debug.log*
+*.log
+.DS_Store
+*.tsbuildinfo
+dev-run.log
+coverage
+out
+build

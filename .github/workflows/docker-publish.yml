@@ -1,0 +1,78 @@
+name: Build & Push Image (GHCR)
+
+# 构建生产镜像并推送到 GitHub Container Registry。
+# ClawCloud Run / 任意 VPS 直接拉取 ghcr.io/<owner>/<repo>:latest 即可部署。
+#
+# 需要在仓库 Settings 里配置：
+#   Variables（不是 Secrets，因为 NEXT_PUBLIC_* 本来就是公开值）：
+#     NEXT_PUBLIC_SUPABASE_URL
+#     NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # 构建参数缺失会产出一个「前端连不上 Supabase」的废镜像，提前拦掉
+      - name: Validate build args
+        run: |
+          if [ -z "${{ vars.NEXT_PUBLIC_SUPABASE_URL }}" ] || [ -z "${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" ]; then
+            echo "::error::缺少仓库 Variables：NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY"
+            echo "路径：Settings → Secrets and variables → Actions → Variables"
+            exit 1
+          fi
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase image name
+        id: img
+        run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.img.outputs.name }}:latest
+            ${{ steps.img.outputs.name }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Summary
+        run: |
+          echo "### 镜像已推送" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.img.outputs.name }}:latest" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.img.outputs.name }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
