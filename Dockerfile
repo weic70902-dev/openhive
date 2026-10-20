@@ -35,6 +35,7 @@ COPY . .
 RUN npm run build
 
 # ---------- 3. 运行层 ----------
+# 注意：ClawCloud 应用需把对外端口显式设为 3000（与下方 EXPOSE 一致）
 FROM node:22-slim AS runner
 WORKDIR /app
 
