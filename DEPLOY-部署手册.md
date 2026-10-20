@@ -1479,3 +1479,45 @@ docker run -d --name openhive --restart=always \
 ```
 
 前置 Nginx + Certbot 反代 `127.0.0.1:3000` 即可拿到 HTTPS。
+
+### 10.10.8 已验证记录（commit `8cc8aa7`，run id `39396032925`）
+
+镜像已构建并推送成功，9 个步骤全部 success，耗时约 3.5 分钟。以下是对产物的逐项验证，
+不是只看 Actions 绿勾：
+
+| 检查项 | 方法 | 结果 |
+|---|---|---|
+| 匿名可拉取 | 不带任何凭据从 `ghcr.io/token` 换匿名 token，访问 `/v2/weic70902-dev/openhive/tags/list` | `["latest","8cc8aa7cace..."]` → GHCR 包确已 public（工作流里「Try to make package public」步骤生效） |
+| 运行时配置 | 读取 OCI image config blob | `User=node`、`ExposedPorts=3000/tcp`、`Cmd=["node","server.js"]`、`WorkingDir=/app`、Healthcheck 存在 |
+| 镜像变量 | config blob 的 `Env` | `NODE_ENV=production`、`PORT=3000`、`HOSTNAME=0.0.0.0`、`NODE_VERSION=22.23.3` |
+| 镜像体积 | manifest 9 层相加 | 100.3MB（低于预估的 180MB） |
+| **build-arg 是否真内联** | 下载第 7 层（`.next/static`）解包后 grep | `dkiyumhhvfwltvcdjykr` 命中 3 个 chunk，`sb_publishable_...` 命中 → **仓库 Variables 填对了，客户端 bundle 拿到了 Supabase 配置** |
+
+最后一项是整个链路里**唯一无法靠服务端接口发现**的故障点：
+`NEXT_PUBLIC_*` 如果漏传或填错，`/api/setup` 依然会返回
+`{"configured":true}`（它读的是服务端 env），而浏览器端 Supabase 全线崩溃。
+所以这层必须单独验证。
+
+### 10.10.9 部署后验收脚本（已自测可用）
+
+```bash
+python scripts/verify-deployment.py https://<分配到的域名>
+```
+
+一次性检查：3 个页面状态与 title、`/api/setup` 返回值、
+**客户端 bundle 里是否真内联了 Supabase URL 与 anon key**、chunk 可达性。
+期望值默认读本地 `.env.local`，也可用 `--expect-url` / `--expect-key` 显式传入。
+退出码 0 = 全部通过，可直接用于 CI。
+
+已在本地 standalone 实例上自测通过：
+```
+✓ 页面 /            HTTP 200，title='OpenHive'
+✓ 页面 /auth        HTTP 200
+✓ 页面 /workspace   HTTP 200
+✓ API /api/setup  HTTP 200 → {"configured":true,"hasServiceKey":true,"storageProvider":"supabase"}
+✓ 客户端 bundle 内联   共 9 个 chunk，含 Supabase URL 的 1 个，含 anon key 的 1 个
+```
+
+> 注意：`git commit --allow-empty` **不会**触发 `docker-publish.yml`
+> （Vercel 那个工作流会跑，镜像工作流不会）。GitHub 对空提交直接跳过 paths 判断。
+> 想手动触发构建，改一个真实文件再 push。

@@ -49,3 +49,5 @@ next-env.d.ts
 .edgeone/*
 .tef_dist/*
   
+# ClawCloud 运行期环境变量（含 service_role key，只在本地生成，绝不入库）
+/deploy/clawcloud.env
