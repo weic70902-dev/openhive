@@ -1441,7 +1441,8 @@ GitHub push ──► Actions 构建镜像 ──► ghcr.io/weic70902-dev/openh
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 2. **触发构建**：push 到 `main`，或 Actions 页手动 `Run workflow`。
-3. **开放镜像拉取**：`GitHub → 个人头像 → Your packages → openhive → Package settings → Change visibility → Public`
+3. **开放镜像拉取**：工作流会尝试用 `GITHUB_TOKEN` 自动把包改成 public；若失败，手动走
+   `GitHub → 个人头像 → Your packages → openhive → Package settings → Change visibility → Public`
    （私有镜像需在 ClawCloud 里配 registry 凭据，公开镜像可跳过这一步）
 4. **ClawCloud 创建应用**：`console.run.claw.cloud → App Launchpad → Create App`
    - Workspace 区域：**Hong Kong**（不要用自动分配，自动分配会落到日本）

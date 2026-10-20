@@ -3,10 +3,12 @@ name: Build & Push Image (GHCR)
 # 构建生产镜像并推送到 GitHub Container Registry。
 # ClawCloud Run / 任意 VPS 直接拉取 ghcr.io/<owner>/<repo>:latest 即可部署。
 #
-# 需要在仓库 Settings 里配置：
-#   Variables（不是 Secrets，因为 NEXT_PUBLIC_* 本来就是公开值）：
+# 前置条件（缺任何一个都不会构建，只会打一条 warning，避免产出连不上 Supabase 的废镜像）：
+#   Settings → Secrets and variables → Actions → Variables 新建：
 #     NEXT_PUBLIC_SUPABASE_URL
 #     NEXT_PUBLIC_SUPABASE_ANON_KEY
+#
+# 这两个是 NEXT_PUBLIC_*，会被内联进浏览器 bundle，本来就是公开值，所以用 Variables 而不是 Secrets。
 
 on:
   push:
@@ -31,19 +33,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # 构建参数缺失会产出一个「前端连不上 Supabase」的废镜像，提前拦掉
-      - name: Validate build args
+      - name: Check build args
+        id: cfg
         run: |
           if [ -z "${{ vars.NEXT_PUBLIC_SUPABASE_URL }}" ] || [ -z "${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" ]; then
-            echo "::error::缺少仓库 Variables：NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY"
-            echo "路径：Settings → Secrets and variables → Actions → Variables"
-            exit 1
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=未构建::缺少仓库 Variables NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY，已跳过镜像构建。配置路径：Settings → Secrets and variables → Actions → Variables"
+            {
+              echo "### ⚠️ 已跳过构建"
+              echo ""
+              echo "缺少仓库 Variables："
+              echo '```'
+              echo "NEXT_PUBLIC_SUPABASE_URL"
+              echo "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+              echo '```'
+              echo "配置后重新 push 或手动 Run workflow 即可。"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up Buildx
+        if: steps.cfg.outputs.ready == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
+        if: steps.cfg.outputs.ready == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -51,10 +66,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lowercase image name
+        if: steps.cfg.outputs.ready == 'true'
         id: img
         run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
+        if: steps.cfg.outputs.ready == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -69,10 +86,31 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
-      - name: Summary
+      # GHCR 包默认私有，ClawCloud 拉取会失败。这里尝试自动改为 public；
+      # 若 GITHUB_TOKEN 权限不足则忽略，改由仓库所有者在 Packages 页面手动切换。
+      - name: Try to make package public
+        if: steps.cfg.outputs.ready == 'true'
+        continue-on-error: true
         run: |
-          echo "### 镜像已推送" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.img.outputs.name }}:latest" >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.img.outputs.name }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          PKG="$(echo '${{ github.event.repository.name }}' | tr '[:upper:]' '[:lower:]')"
+          curl -sf -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/user/packages/container/${PKG}" \
+            -d '{"visibility":"public"}' \
+            && echo "package visibility -> public" \
+            || echo "::notice::自动切换可见性失败，请在 GitHub → Your packages → ${PKG} → Package settings 手动改为 Public"
+
+      - name: Summary
+        if: steps.cfg.outputs.ready == 'true'
+        run: |
+          {
+            echo "### 镜像已推送"
+            echo '```'
+            echo "${{ steps.img.outputs.name }}:latest"
+            echo "${{ steps.img.outputs.name }}:${{ github.sha }}"
+            echo '```'
+            echo ""
+            echo "在 ClawCloud App Launchpad 里填：\`${{ steps.img.outputs.name }}:latest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
