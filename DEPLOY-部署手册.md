@@ -1521,3 +1521,34 @@ python scripts/verify-deployment.py https://<分配到的域名>
 > 注意：`git commit --allow-empty` **不会**触发 `docker-publish.yml`
 > （Vercel 那个工作流会跑，镜像工作流不会）。GitHub 对空提交直接跳过 paths 判断。
 > 想手动触发构建，改一个真实文件再 push。
+
+---
+
+## 10.11 ⚠️ ClawCloud Run 已不可用（2026-10-21 核实）
+
+用户反馈 `console.run.claw.cloud` 无法打开。排查后确认**不是用户网络问题**：
+
+| 域名 | alidns DoH | 腾讯 DoH | Windows 系统解析器 | 结论 |
+|---|---|---|---|---|
+| `console.run.claw.cloud` | NXDOMAIN | NXDOMAIN | DNS 名称不存在 | ❌ 域名不存在 |
+| `ap-northeast-1.run.claw.cloud`（第三方自动化脚本里用的真实地址） | NXDOMAIN | NXDOMAIN | DNS 名称不存在 | ❌ 域名不存在 |
+| `ap-east-1.run.claw.cloud` | NXDOMAIN | NXDOMAIN | DNS 名称不存在 | ❌ |
+| `run.claw.cloud` | NOERROR 但无 A 记录 | NOERROR 但无 A 记录 | 无 A 记录 | ❌ 无可用地址 |
+| `claw.cloud`（官网） | 有 A 记录 | — | — | ⚠️ 首页返回 **503 Service Unavailable** |
+| `docs.claw.cloud`（文档站） | 104.21.94.153 | — | OK | ✅ 仅剩静态文档站 |
+
+另外 `app / console / cloud / portal / account / vps / api / status / cn` 等子域全部 NXDOMAIN。
+
+**结论**：ClawCloud Run 的控制台/产品域名已全部无法解析，官网 503，只剩文档站在线。
+该平台已停止服务或发生重大故障，**不要再向用户推荐或重试**。
+
+### 为什么剩下的免费平台也不满足「大陆可访问」
+
+| 平台 | 免费层地区 | 问题 |
+|---|---|---|
+| Koyeb | 免费层只能用 **巴黎**（社区教程 2026 年确认），512MB 内存上限，单区域 | 距大陆 ~250ms+；且 `*.koyeb.app` 域名在 Cloudflare 后，**部分国内运营商直接阻断 Cloudflare** |
+| Render / Railway | 美西 / 欧洲 | 无亚洲节点，大陆访问差 |
+| Fly.io | 有 `hkg` | 需信用卡，且 Fly.io 的 IP 段在大陆经常被墙 |
+
+真正同时满足「免备案 + 大陆低延迟」的，只有**香港/新加坡的实体服务器**，而这一类基本都要按月付费。
+所以当前唯一务实路线是香港轻量服务器（见 10.10.7 的 `docker run` 命令，改成本机 IP 即可）。
