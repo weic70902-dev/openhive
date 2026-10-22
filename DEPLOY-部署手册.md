@@ -1552,3 +1552,55 @@ python scripts/verify-deployment.py https://<分配到的域名>
 
 真正同时满足「免备案 + 大陆低延迟」的，只有**香港/新加坡的实体服务器**，而这一类基本都要按月付费。
 所以当前唯一务实路线是香港轻量服务器（见 10.10.7 的 `docker run` 命令，改成本机 IP 即可）。
+
+---
+
+## 10.12 Oracle Cloud 免费层部署（commit `0ce7ca0`，run `39714032670`）
+
+### 为什么转向 Oracle
+ClawCloud 停服后（见 10.11），剩下的免费平台都不满足「大陆可访问」。
+Oracle Cloud 的 **Always Free** 是唯一「永久免费 + 有亚洲区域 + 10 TB/月出站流量」的组合。
+
+### 关键决策：镜像必须多架构
+Oracle 的免费 ARM 实例是 **Ampere A1（arm64）**，而腾讯/阿里云轻量是 amd64。
+原来的镜像只有 amd64，在 Oracle 上要么跑不起来，要么走 QEMU 模拟慢到不可用。
+
+已在工作流中加入：
+```yaml
+- uses: docker/setup-qemu-action@v3
+- uses: docker/build-push-action@v6
+  with:
+    platforms: linux/amd64,linux/arm64
+```
+
+### 已验证（run `39714032670`，约 9.5 分钟）
+
+| 检查项 | amd64 | arm64 |
+|---|---|---|
+| manifest 类型 | OCI image index，同时含两个架构 | 同 |
+| 层数 / 体积 | 9 层 / 100.3 MB | 9 层 / 100.9 MB |
+| `User` | `node` | `node` |
+| `Cmd` | `["node","server.js"]` | `["node","server.js"]` |
+| `ExposedPorts` | `3000/tcp` | `3000/tcp` |
+| Env | `NODE_ENV=production / PORT=3000 / HOSTNAME=0.0.0.0` | 同 |
+| **Supabase 配置是否内联** | URL 命中 3 个 chunk、anon key 命中 1 个 | URL 命中 3 个 chunk、anon key 命中 1 个 |
+
+> 读取 manifest 的坑：多架构镜像要用 `Accept: application/vnd.oci.image.index.v1+json`；
+> 用 `application/vnd.oci.image.manifest.v1+json` 会拿到空响应。
+> 层 blob 会 307 重定向，curl 必须加 `-L`。
+
+### 交付物
+| 文件 | 作用 |
+|---|---|
+| `deploy/oracle/bootstrap.sh` | 服务器一键部署：装 Docker → 装 Caddy 自动 HTTPS → **放行 OCI 镜像自带的 iptables（只放行 22 的坑）** → 拉多架构镜像 → `--restart unless-stopped` 起容器 → 可选 DuckDNS 定时同步 |
+| `deploy/ORACLE-CLOUD-操作步骤.md` | 注册到验收的 7 步清单，含 ARM 容量不足的重试方案 |
+
+### 三个必须知道的 Oracle 坑
+1. **主区域注册时选一次，永久不能改**，且 Always Free 资源只在主区域有效 → 建议 Osaka 或 Singapore，不要选美欧
+2. **两层防火墙**：控制台安全列表 + 实例自带 iptables（OCI 的 Ubuntu 镜像默认只放行 22，80/443 被静默丢弃）→ bootstrap.sh 已自动处理第二层
+3. **空闲回收**：连续 7 天 CPU/网络/内存都低于 20% 的实例，Oracle 有权回收 → 测试项目建议挂个 cron 定期自访问
+
+### 为什么必须配域名（而不是直接用 IP）
+浏览器只在 HTTPS 或 localhost 下提供 `crypto.subtle`，Supabase 登录依赖它。
+`http://IP` 会让登录功能直接坏掉，所以必须签 Let's Encrypt 证书，必须有域名。
+免费方案用 DuckDNS（`xxx.duckdns.org`，无需审核，支持 LE）。
